@@ -13,6 +13,7 @@ container_digest="$(docker image inspect "$(docker container inspect jellyfin --
 published_port="$(docker port jellyfin 8096/tcp)"
 media_mode="$(docker container inspect jellyfin --format '{{range .Mounts}}{{if eq .Destination "/media"}}{{.Mode}}{{end}}{{end}}')"
 bridge_mode="$(docker container inspect jellyfin --format '{{range .Mounts}}{{if eq .Destination "/config/plugins/KuniniAuth/Jellyfin.Plugin.KuniniAuth.dll"}}{{.Mode}}{{end}}{{end}}')"
+configured_dns="$(docker container inspect jellyfin --format '{{json .HostConfig.Dns}}')"
 
 if [[ "${container_health}" != "healthy" || "${container_digest}" != "${expected_digest}" ]]; then
     echo "Container health or image digest mismatch." >&2
@@ -20,6 +21,29 @@ if [[ "${container_health}" != "healthy" || "${container_digest}" != "${expected
 fi
 if [[ "${published_port}" != "127.0.0.1:8096" || "${media_mode}" != "ro" || "${bridge_mode}" != "ro" ]]; then
     echo "Listener or read-only mount mismatch." >&2
+    exit 1
+fi
+if [[ "${configured_dns}" != '["9.9.9.9","149.112.112.112"]' ]]; then
+    echo "Container DNS configuration mismatch." >&2
+    exit 1
+fi
+
+tmdb_api_ip="$(docker exec jellyfin getent ahostsv4 api.themoviedb.org | awk 'NR == 1 { print $1 }')"
+tmdb_image_ip="$(docker exec jellyfin getent ahostsv4 image.tmdb.org | awk 'NR == 1 { print $1 }')"
+if [[ -z "${tmdb_api_ip}" || -z "${tmdb_image_ip}" || "${tmdb_api_ip}" == 127.* || "${tmdb_image_ip}" == 127.* ]]; then
+    echo "TMDb DNS resolution is missing or points to loopback." >&2
+    exit 1
+fi
+tmdb_api_status="$(docker exec jellyfin curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+    --connect-timeout 10 --max-time 20 --retry 2 --retry-all-errors --retry-delay 1 \
+    --resolve "api.themoviedb.org:443:${tmdb_api_ip}" \
+    https://api.themoviedb.org/3/configuration)"
+tmdb_image_status="$(docker exec jellyfin curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+    --connect-timeout 10 --max-time 20 --retry 2 --retry-all-errors --retry-delay 1 \
+    --resolve "image.tmdb.org:443:${tmdb_image_ip}" \
+    https://image.tmdb.org/)"
+if [[ ! "${tmdb_api_status}" =~ ^[1-5][0-9]{2}$ || ! "${tmdb_image_status}" =~ ^[1-5][0-9]{2}$ ]]; then
+    echo "TMDb API or image endpoint is not reachable over HTTPS." >&2
     exit 1
 fi
 
@@ -76,5 +100,6 @@ certificate_expiry="$(openssl s_client -connect "${domain}:443" -servername "${d
 scan_state="$(jq -r '.State' <<<"${task}")"
 scan_progress="$(jq -r '.CurrentProgressPercentage // 0' <<<"${task}")"
 
-printf 'container=healthy image=%s port=%s media=%s bridge=%s libraries=3 items=%s scan=%s progress=%s%% cert_expiry=%s\n' \
-    "${expected_digest}" "${published_port}" "${media_mode}" "${bridge_mode}" "${item_count}" "${scan_state}" "${scan_progress}" "${certificate_expiry}"
+printf 'container=healthy image=%s port=%s media=%s bridge=%s dns=%s tmdb=%s/%s libraries=3 items=%s scan=%s progress=%s%% cert_expiry=%s\n' \
+    "${expected_digest}" "${published_port}" "${media_mode}" "${bridge_mode}" "${configured_dns}" \
+    "${tmdb_api_status}" "${tmdb_image_status}" "${item_count}" "${scan_state}" "${scan_progress}" "${certificate_expiry}"
