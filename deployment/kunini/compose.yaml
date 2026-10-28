@@ -1,0 +1,45 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:12.4@sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771
+    container_name: jellyfin
+    user: "1000:1000"
+    group_add:
+      - "44"
+      - "993"
+    ports:
+      - "127.0.0.1:8096:8096/tcp"
+    environment:
+      JELLYFIN_PublishedServerUrl: https://media.kunini.ru
+      KUNINI_AUTH_ENABLED: "true"
+      KUNINI_AUTH_ADMIN_USERS: dkunin
+      KUNINI_AUTH_RECOVERY_ADDRESSES: 172.30.0.1
+    volumes:
+      - /var/apps/jellyfin/config:/config
+      - /mnt/data/.jellyfin-cache:/cache
+      - /mnt/data/plex:/media:ro
+      - /var/apps/jellyfin/deployment/auth-bridge/build/Jellyfin.Plugin.KuniniAuth.dll:/config/plugins/KuniniAuth/Jellyfin.Plugin.KuniniAuth.dll:ro
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8096/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      jellyfin:
+        ipv4_address: 172.30.0.2
+
+networks:
+  jellyfin:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/28
+          gateway: 172.30.0.1

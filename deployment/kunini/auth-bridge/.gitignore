@@ -1,0 +1,5 @@
+**/bin/
+**/obj/
+build/
+!Jellyfin.Plugin.KuniniAuth/Web/
+!Jellyfin.Plugin.KuniniAuth/Web/kunini-sso.js
