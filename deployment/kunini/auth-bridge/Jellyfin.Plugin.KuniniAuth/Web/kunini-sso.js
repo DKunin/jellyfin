@@ -8,10 +8,16 @@
     const startupTimeoutMs = 20000;
     let loginAttempted = false;
     let finished = false;
+    let observer;
 
     const revealApplication = () => {
         document.getElementById(guardId)?.remove();
+    };
+
+    const finish = () => {
+        revealApplication();
         finished = true;
+        observer?.disconnect();
     };
 
     const showFailure = () => {
@@ -59,7 +65,14 @@
         const onLoginRoute = window.location.hash.toLocaleLowerCase().includes("login");
         const appRoot = document.getElementById("reactRoot");
         if (!onLoginRoute && appRoot?.childElementCount) {
-            revealApplication();
+            if (loginAttempted) {
+                finish();
+            } else {
+                // Jellyfin renders its splash inside reactRoot before it decides
+                // whether the current browser has a valid session. Keep watching:
+                // a fresh browser can still be redirected to the login route.
+                revealApplication();
+            }
         }
     };
 
@@ -80,15 +93,22 @@
             }
 
             sessionStorage.setItem("kunini-auth-target", status.jellyfinUsername);
-            const observer = new MutationObserver(() => attemptLogin(status.loginUsername));
+            observer = new MutationObserver(() => attemptLogin(status.loginUsername));
             observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
             window.addEventListener("hashchange", () => attemptLogin(status.loginUsername));
             attemptLogin(status.loginUsername);
 
             window.setTimeout(() => {
-                observer.disconnect();
-                if (!finished) {
+                if (finished) {
+                    return;
+                }
+
+                observer?.disconnect();
+                if (window.location.hash.toLocaleLowerCase().includes("login")) {
                     showFailure();
+                } else {
+                    revealApplication();
+                    finished = true;
                 }
             }, startupTimeoutMs);
         } catch (error) {

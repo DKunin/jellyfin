@@ -8,6 +8,8 @@ sdk_image="mcr.microsoft.com/dotnet/sdk:10.0.100@sha256:c7445f141c04f1a6b454181b
 
 mkdir -p "${output_dir}"
 
+node --test "${source_dir}/Jellyfin.Plugin.KuniniAuth/Web/kunini-sso.test.js"
+
 run_build() {
     docker run --rm \
         --user "$(id -u):$(id -g)" \
