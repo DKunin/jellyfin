@@ -6,7 +6,7 @@ namespace Jellyfin.Plugin.KuniniDiscover;
 
 internal static class RecommendationSelector
 {
-    private const string PosterBaseUrl = "https://image.tmdb.org/t/p/w500";
+    private const string PosterProxyPath = "/KuniniDiscover/poster?path=";
     private const string TmdbBaseUrl = "https://www.themoviedb.org";
 
     private static readonly IReadOnlyDictionary<int, string> Genres = new Dictionary<int, string>
@@ -53,7 +53,9 @@ internal static class RecommendationSelector
                 .Select(id => Genres.TryGetValue(id, out var value) ? value : null)
                 .FirstOrDefault(value => value is not null)
                 ?? "Recommended by TMDb";
-            var posterUrl = string.IsNullOrWhiteSpace(candidate.PosterPath) ? null : PosterBaseUrl + candidate.PosterPath;
+            var posterUrl = string.IsNullOrWhiteSpace(candidate.PosterPath)
+                ? null
+                : PosterProxyPath + Uri.EscapeDataString(candidate.PosterPath);
             var matchPercent = Math.Max(60, 96 - (selected.Count * 3));
 
             selected.Add(new RecommendationItem(

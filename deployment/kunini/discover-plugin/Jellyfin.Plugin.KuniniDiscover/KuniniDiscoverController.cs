@@ -17,18 +17,22 @@ namespace Jellyfin.Plugin.KuniniDiscover;
 public sealed class KuniniDiscoverController : ControllerBase
 {
     private readonly RecommendationService _recommendationService;
+    private readonly TmdbPosterClient _posterClient;
     private readonly ILogger<KuniniDiscoverController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="KuniniDiscoverController"/> class.
     /// </summary>
     /// <param name="recommendationService">The recommendation service.</param>
+    /// <param name="posterClient">The validated TMDb poster proxy client.</param>
     /// <param name="logger">The logger.</param>
     public KuniniDiscoverController(
         RecommendationService recommendationService,
+        TmdbPosterClient posterClient,
         ILogger<KuniniDiscoverController> logger)
     {
         _recommendationService = recommendationService;
+        _posterClient = posterClient;
         _logger = logger;
     }
 
@@ -49,6 +53,38 @@ public sealed class KuniniDiscoverController : ControllerBase
     [AllowAnonymous]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public ActionResult Styles() => EmbeddedAsset("kunini-discover.css", "text/css; charset=utf-8");
+
+    /// <summary>
+    /// Returns a TMDb poster through the server so browsers do not depend on direct CDN access.
+    /// </summary>
+    /// <param name="path">The TMDb poster path.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The poster as a same-origin JPEG.</returns>
+    [HttpGet("poster")]
+    [AllowAnonymous]
+    [ResponseCache(Duration = 21600, Location = ResponseCacheLocation.Any)]
+    public async Task<IActionResult> Poster(
+        [FromQuery] string path,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TmdbPosterClient.IsValidPosterPath(path))
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var image = await _posterClient.GetPosterAsync(path, cancellationToken).ConfigureAwait(false);
+            return File(image, "image/jpeg");
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogWarning(exception, "TMDb poster proxy failed for {PosterPath}", path);
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "TMDb poster is temporarily unavailable");
+        }
+    }
 
     /// <summary>
     /// Gets TMDb recommendations that are not present in the library.

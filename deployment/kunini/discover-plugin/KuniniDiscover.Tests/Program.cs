@@ -29,7 +29,7 @@ Assert(selected.Count == 1, "only one external recommendation with a release yea
 Assert(selected[0].SourceId == 300, "the external TMDb id must be preserved");
 Assert(selected[0].Title == "External" && selected[0].Year == 2022, "title and release year must be preserved");
 Assert(selected[0].Genre == "Science fiction", "the primary TMDb genre must be mapped");
-Assert(selected[0].PosterUrl == "https://image.tmdb.org/t/p/w500/poster.jpg", "poster paths must use the TMDb CDN");
+Assert(selected[0].PosterUrl == "/KuniniDiscover/poster?path=%2Fposter.jpg", "poster paths must use the validated same-origin proxy");
 Assert(selected[0].MatchPercent == 96, "the first recommendation must receive the strongest rank score");
 
 var seriesSelected = RecommendationSelector.Select(
@@ -41,6 +41,9 @@ var seriesSelected = RecommendationSelector.Select(
 Assert(seriesSelected.Count == 1, "a series recommendation must be selected");
 Assert(seriesSelected[0].MediaType == "Series" && seriesSelected[0].Year == 2001, "series metadata must use name and first_air_date");
 Assert(seriesSelected[0].DetailsUrl == "https://www.themoviedb.org/tv/500", "series details must use the TMDb TV route");
+Assert(TmdbPosterClient.IsValidPosterPath("/valid_TMDb-poster.jpg"), "valid TMDb poster paths must be accepted");
+Assert(!TmdbPosterClient.IsValidPosterPath("https://example.com/poster.jpg"), "absolute poster URLs must be rejected");
+Assert(!TmdbPosterClient.IsValidPosterPath("/../poster.jpg"), "path traversal must be rejected");
 
 var resources = typeof(RecommendationSelector).Assembly.GetManifestResourceNames();
 Assert(resources.Contains("Jellyfin.Plugin.KuniniDiscover.Web.kunini-discover.js", StringComparer.Ordinal), "the browser script must be embedded in the plugin assembly");

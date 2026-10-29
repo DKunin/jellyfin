@@ -90,6 +90,12 @@ discover_response="$(curl --fail --silent \
     --header "${token_header}")"
 jq -e '.source == "TMDb" and (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800)' \
     <<<"${discover_response}" >/dev/null
+discover_poster_url="$(jq -r '[.items[].posterUrl | select(. != null)][0] // empty' <<<"${discover_response}")"
+if [[ -n "${discover_poster_url}" ]]; then
+    discover_poster_type="$(curl --fail --silent --output /dev/null --write-out '%{content_type}' \
+        "${base_url}${discover_poster_url}")"
+    [[ "${discover_poster_type}" == "image/jpeg" ]]
+fi
 network_config="$(curl --fail --silent "${base_url}/System/Configuration/network" --header "${token_header}")"
 if ! jq -e '.EnablePublishedServerUriByRequest == true' <<<"${network_config}" >/dev/null; then
     echo "Request-derived published server URLs are not enabled." >&2
