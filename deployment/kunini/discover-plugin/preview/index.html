@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Kunini Discover local preview</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="../Jellyfin.Plugin.KuniniDiscover/Web/kunini-discover.css">
     <style>
         * { box-sizing: border-box; }
@@ -40,8 +41,9 @@
     <script>
         window.ApiClient = {
             getUrl: (path, parameters) => parameters ? `${path}?${new URLSearchParams(parameters)}` : path,
-            ajax: async ({ url }) => url.includes("/KuniniDiscover/details")
-                ? {
+            ajax: async ({ url }) => {
+                if (url.includes("/KuniniDiscover/details")) {
+                    return {
                     sourceId: 4488,
                     mediaType: "Movie",
                     title: "Friday the 13th",
@@ -61,14 +63,38 @@
                     backdropUrl: "/preview/assets/desert-hero.png",
                     trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
                     trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0"
+                    };
                 }
-                : {
+                const requestUrl = new URL(url, window.location.href);
+                const isPerson = requestUrl.searchParams.get("itemId") === "5cf73950d0a972e18f03b2e0c06c463b";
+                const requestedPage = Number(requestUrl.searchParams.get("page") || 1);
+                const isRecommendation = requestUrl.pathname.endsWith("/KuniniDiscover/recommendations");
+                if (isRecommendation && requestedPage > 1) {
+                    await new Promise((resolve) => window.setTimeout(resolve, 250));
+                }
+                return {
                     source: "TMDb",
+                    heading: isPerson ? "Movies with Кэри Маллиган" : null,
+                    subtitle: isPerson ? "Filmography from TMDb • Not stored on this server" : null,
+                    page: requestedPage,
+                    hasMore: isRecommendation && !isPerson && requestedPage === 1,
                     items: url.includes("/KuniniDiscover/search")
                         ? [
                             { sourceId: 4488, mediaType: "Movie", title: "Friday the 13th", year: 1980, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Horror", matchPercent: 0 },
                             { sourceId: 9725, mediaType: "Movie", title: "Friday the 13th Part 2", year: 1981, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Horror", matchPercent: 0 },
                             { sourceId: 10225, mediaType: "Movie", title: "Friday the 13th Part VI", year: 1986, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Horror", matchPercent: 0 }
+                        ]
+                        : isPerson
+                        ? [
+                            { sourceId: 466420, mediaType: "Movie", title: "Maestro", year: 2023, posterUrl: "/preview/assets/recommendation-posters.png", genre: "as Felicia Montealegre", matchPercent: 0 },
+                            { sourceId: 837881, mediaType: "Movie", title: "She Said", year: 2022, posterUrl: "/preview/assets/recommendation-posters.png", genre: "as Megan Twohey", matchPercent: 0 },
+                            { sourceId: 582014, mediaType: "Movie", title: "Promising Young Woman", year: 2020, posterUrl: "/preview/assets/recommendation-posters.png", genre: "as Cassandra", matchPercent: 0 }
+                        ]
+                        : requestedPage > 1
+                        ? [
+                            { sourceId: 300668, mediaType: "Movie", title: "Annihilation", year: 2018, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Science fiction", matchPercent: 84 },
+                            { sourceId: 433808, mediaType: "Movie", title: "The Ritual", year: 2017, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Horror", matchPercent: 81 },
+                            { sourceId: 516632, mediaType: "Movie", title: "The Empty Man", year: 2020, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Mystery", matchPercent: 78 }
                         ]
                         : [
                             { sourceId: 438631, mediaType: "Movie", title: "Dune", year: 2021, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Science fiction", matchPercent: 96 },
@@ -76,7 +102,8 @@
                             { sourceId: 329865, mediaType: "Movie", title: "Arrival", year: 2016, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Drama", matchPercent: 90 },
                             { sourceId: 412656, mediaType: "Movie", title: "Chaos Walking", year: 2021, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Fantasy", matchPercent: 87 }
                         ]
-                }
+                };
+            }
         };
     </script>
 </head>

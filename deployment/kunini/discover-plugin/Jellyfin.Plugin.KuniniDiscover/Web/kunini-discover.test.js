@@ -88,3 +88,55 @@ test("rejects mismatched or untrusted trailer URLs", () => {
         trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/Different01"
     }), null);
 });
+
+test("renders a person filmography heading and loads the next result page", async () => {
+    const elements = new Map();
+    const document = {
+        getElementById: (id) => elements.get(id) || null,
+        createElement: (tagName) => {
+            const element = {
+                tagName,
+                children: [],
+                className: "",
+                dataset: {},
+                attributes: {},
+                listeners: {},
+                append(...children) { this.children.push(...children); },
+                addEventListener(name, listener) { this.listeners[name] = listener; },
+                remove() {},
+                removeAttribute(name) { delete this.attributes[name]; },
+                setAttribute(name, value) { this.attributes[name] = value; }
+            };
+            Object.defineProperty(element, "id", {
+                set(value) { elements.set(value, element); },
+                get() { return [...elements].find(([, candidate]) => candidate === element)?.[0]; }
+            });
+            return element;
+        }
+    };
+    const container = {
+        children: [],
+        lastElementChild: null,
+        querySelector: () => null,
+        append(child) { this.children.push(child); this.lastElementChild = child; }
+    };
+    let nextLoads = 0;
+    discover.render(document, container, "5cf73950d0a972e18f03b2e0c06c463b", {
+        source: "TMDb",
+        heading: "Movies with Кэри Маллиган",
+        subtitle: "Filmography from TMDb • Not stored on this server",
+        page: 1,
+        hasMore: true,
+        items: [{ sourceId: 1, mediaType: "Movie", title: "Maestro", year: 2023, genre: "as Felicia", matchPercent: 0 }]
+    }, "#/details?id=5cf73950d0a972e18f03b2e0c06c463b", async () => { nextLoads += 1; });
+
+    assert.equal(elements.get("kunini-discover-heading").textContent, "Movies with Кэри Маллиган");
+    assert.equal(container.children[0].children[1].attributes["aria-label"], "Movies with Кэри Маллиган");
+    const nextButton = container.children[0].children[0].children[1].children[0];
+    assert.equal(nextButton.textContent, "NEXT →");
+    assert.equal(nextButton.attributes["aria-label"], "Load the next page of Movies with Кэри Маллиган");
+    await nextButton.listeners.click();
+    assert.equal(nextLoads, 1);
+    assert.equal(nextButton.disabled, false);
+    assert.equal(nextButton.textContent, "NEXT →");
+});

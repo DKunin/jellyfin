@@ -77,6 +77,8 @@ token_header="Authorization: MediaBrowser Token=\"${access_token}\""
 providers="$(curl --fail --silent "${base_url}/Auth/Providers" --header "${token_header}")"
 jq -e '.[] | select(.Name == "Kunini Auth")' <<<"${providers}" >/dev/null
 curl --fail --silent "${base_url}/KuniniDiscover/script.js" | grep -F 'Discover beyond your library' >/dev/null
+curl --fail --silent "${base_url}/KuniniDiscover/script.js" | grep -F 'response.heading' >/dev/null
+curl --fail --silent "${base_url}/KuniniDiscover/script.js" | grep -F 'response.hasMore' >/dev/null
 curl --fail --silent "${base_url}/KuniniDiscover/styles.css" | grep -F '.kunini-discover-section' >/dev/null
 discover_source_id="$(curl --fail --silent \
     "${base_url}/Items?Recursive=true&IncludeItemTypes=Movie,Series&HasTmdbId=true&Limit=1&Fields=ProviderIds" \
@@ -86,16 +88,33 @@ if [[ -z "${discover_source_id}" ]]; then
     exit 1
 fi
 discover_response="$(curl --fail --silent \
-    "${base_url}/KuniniDiscover/recommendations?itemId=${discover_source_id}&limit=5" \
+    "${base_url}/KuniniDiscover/recommendations?itemId=${discover_source_id}&limit=20&page=1" \
     --header "${token_header}")"
-jq -e '.source == "TMDb" and (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800)' \
+jq -e '.source == "TMDb" and .page == 1 and (.hasMore | type == "boolean") and
+    (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800)' \
     <<<"${discover_response}" >/dev/null
+if jq -e '.hasMore == true' <<<"${discover_response}" >/dev/null; then
+    discover_next_response="$(curl --fail --silent \
+        "${base_url}/KuniniDiscover/recommendations?itemId=${discover_source_id}&limit=20&page=2" \
+        --header "${token_header}")"
+    jq -e '.source == "TMDb" and .page == 2 and (.hasMore | type == "boolean") and
+        (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800)' \
+        <<<"${discover_next_response}" >/dev/null
+fi
 discover_search_response="$(curl --fail --silent --get "${base_url}/KuniniDiscover/search" \
     --header "${token_header}" \
     --data-urlencode 'query=Friday 13' \
     --data-urlencode 'limit=5')"
 jq -e '.source == "TMDb" and (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800 and (.mediaType == "Movie" or .mediaType == "Series"))' \
     <<<"${discover_search_response}" >/dev/null
+discover_person_response="$(curl --fail --silent --get "${base_url}/KuniniDiscover/recommendations" \
+    --header "${token_header}" \
+    --data-urlencode 'itemId=5cf73950d0a972e18f03b2e0c06c463b' \
+    --data-urlencode 'limit=5')"
+jq -e '.source == "TMDb" and (.heading | startswith("Movies with ")) and
+    (.subtitle | startswith("Filmography from TMDb")) and (.items | length > 0) and
+    all(.items[]; .mediaType == "Movie" and (.title | length) > 0 and .year > 1800 and .matchPercent == 0)' \
+    <<<"${discover_person_response}" >/dev/null
 discover_detail_id="$(jq -r '.items[0].sourceId // empty' <<<"${discover_response}")"
 discover_detail_type="$(jq -r '.items[0].mediaType // empty' <<<"${discover_response}")"
 if [[ -n "${discover_detail_id}" && -n "${discover_detail_type}" ]]; then

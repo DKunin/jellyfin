@@ -5,5 +5,6 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 port="${1:-8765}"
 
 printf 'Kunini Discover preview: http://127.0.0.1:%s/preview/index.html#/details?id=3cf2cc5c1467441a9f8bb42babc2eb7d\n' "${port}"
+printf 'Person filmography preview: http://127.0.0.1:%s/preview/index.html#/details?id=5cf73950d0a972e18f03b2e0c06c463b\n' "${port}"
 printf 'Kunini Discover search:  http://127.0.0.1:%s/preview/index.html#/search?query=Friday%%2013\n' "${port}"
 exec python3 -m http.server "${port}" --bind 127.0.0.1 --directory "${script_dir}/discover-plugin"

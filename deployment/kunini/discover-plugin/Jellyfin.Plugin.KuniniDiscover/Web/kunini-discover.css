@@ -39,18 +39,44 @@
 
 .kunini-discover-sources {
     display: flex;
+    align-items: center;
     flex: 0 0 auto;
     gap: 0.5rem;
 }
 
-.kunini-discover-source {
+.kunini-discover-source,
+.kunini-discover-next {
     padding: 0.38rem 0.8rem;
-    border: 1px solid var(--kunini-discover-accent-b);
     border-radius: 999px;
-    color: #6bd9ff;
-    background: rgba(0, 0, 0, 0.34);
+    font-family: inherit;
     font-size: 0.84rem;
     font-weight: 600;
+}
+
+.kunini-discover-source {
+    border: 1px solid var(--kunini-discover-accent-b);
+    color: #6bd9ff;
+    background: rgba(0, 0, 0, 0.34);
+}
+
+.kunini-discover-next {
+    border: 1px solid transparent;
+    color: #fff;
+    background: linear-gradient(100deg, var(--kunini-discover-accent-a), var(--kunini-discover-accent-b));
+    cursor: pointer;
+}
+
+.kunini-discover-next:hover,
+.kunini-discover-next:focus-visible {
+    filter: brightness(1.18);
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.kunini-discover-next:disabled {
+    cursor: wait;
+    filter: saturate(0.4);
+    opacity: 0.72;
 }
 
 .kunini-discover-rail {

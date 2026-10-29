@@ -185,18 +185,20 @@ public sealed class KuniniDiscoverController : ControllerBase
     }
 
     /// <summary>
-    /// Gets TMDb recommendations that are not present in the library.
+    /// Gets TMDb recommendations or person filmography entries that are not present in the library.
     /// </summary>
-    /// <param name="itemId">The local Jellyfin movie or series identifier.</param>
+    /// <param name="itemId">The local Jellyfin movie, series, or person identifier.</param>
     /// <param name="limit">The maximum result count.</param>
+    /// <param name="page">The one-based external result page.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The external recommendations.</returns>
+    /// <returns>The external recommendations or person filmography.</returns>
     [HttpGet("recommendations")]
     [Authorize]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> Recommendations(
         [FromQuery] Guid itemId,
-        [FromQuery] int limit = 12,
+        [FromQuery] int limit = 20,
+        [FromQuery] int page = 1,
         CancellationToken cancellationToken = default)
     {
         var userIdValue = User.Claims
@@ -210,7 +212,12 @@ public sealed class KuniniDiscoverController : ControllerBase
         try
         {
             var result = await _recommendationService
-                .GetRecommendationsAsync(itemId, userId, Math.Clamp(limit, 1, 20), cancellationToken)
+                .GetRecommendationsAsync(
+                    itemId,
+                    userId,
+                    Math.Clamp(limit, 1, 20),
+                    Math.Clamp(page, 1, 500),
+                    cancellationToken)
                 .ConfigureAwait(false);
             return result is null ? NotFound() : Ok(result);
         }

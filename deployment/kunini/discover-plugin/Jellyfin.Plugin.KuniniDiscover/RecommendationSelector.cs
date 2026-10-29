@@ -124,6 +124,54 @@ internal static class RecommendationSelector
         return selected;
     }
 
+    public static RecommendationResponse SelectFilmography(
+        TmdbPersonDetails person,
+        string displayName,
+        IReadOnlySet<string> localMovieTmdbIds,
+        int limit)
+    {
+        var directedCredits = person.MovieCredits.Crew
+            .Where(credit => string.Equals(credit.Job, "Director", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var isDirector = string.Equals(person.KnownForDepartment, "Directing", StringComparison.OrdinalIgnoreCase)
+            || (person.MovieCredits.Cast.Count == 0 && directedCredits.Length > 0);
+        var credits = isDirector ? directedCredits : person.MovieCredits.Cast;
+        var seen = new HashSet<int>();
+        var selected = credits
+            .Where(credit => credit.Id > 0
+                && !localMovieTmdbIds.Contains(credit.Id.ToString(CultureInfo.InvariantCulture))
+                && !string.IsNullOrWhiteSpace(credit.Title)
+                && TryReadYear(credit.ReleaseDate, out _)
+                && seen.Add(credit.Id))
+            .OrderByDescending(credit => credit.ReleaseDate, StringComparer.Ordinal)
+            .Take(limit)
+            .Select(credit =>
+            {
+                TryReadYear(credit.ReleaseDate, out var year);
+                var context = isDirector
+                    ? "Director"
+                    : string.IsNullOrWhiteSpace(credit.Character)
+                        ? "Acting credit"
+                        : $"as {credit.Character.Trim()}";
+                return new RecommendationItem(
+                    credit.Id,
+                    RecommendationMediaKind.Movie.ToString(),
+                    credit.Title!.Trim(),
+                    year,
+                    BuildImageUrl(credit.PosterPath, null),
+                    credit.Overview,
+                    context,
+                    0);
+            })
+            .ToArray();
+        var heading = isDirector ? $"Directed by {displayName}" : $"Movies with {displayName}";
+        return new RecommendationResponse(
+            "TMDb",
+            selected,
+            heading,
+            "Filmography from TMDb • Not stored on this server");
+    }
+
     public static ExternalDetailResponse? SelectDetails(TmdbDetails details, RecommendationMediaKind kind)
     {
         var title = kind == RecommendationMediaKind.Movie ? details.MovieTitle : details.SeriesTitle;

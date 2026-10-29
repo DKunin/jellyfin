@@ -316,7 +316,7 @@
         }
     };
 
-    const render = (document, container, itemId, response, currentHash) => {
+    const render = (document, container, itemId, response, currentHash, onNext = null) => {
         document.getElementById(sectionId)?.remove();
         if (!response?.items?.length) {
             return;
@@ -329,21 +329,43 @@
 
         const header = createElement(document, "div", "kunini-discover-header");
         const copy = createElement(document, "div", "kunini-discover-copy");
-        const heading = createElement(document, "h2", "kunini-discover-heading", "Discover beyond your library");
+        const headingText = response.heading || "Discover beyond your library";
+        const subtitleText = response.subtitle || "Suggestions from free public catalogs • Not stored on this server";
+        const heading = createElement(document, "h2", "kunini-discover-heading", headingText);
         heading.id = "kunini-discover-heading";
         copy.append(
             heading,
-            createElement(document, "p", "kunini-discover-subtitle", "Suggestions from free public catalogs • Not stored on this server")
+            createElement(document, "p", "kunini-discover-subtitle", subtitleText)
         );
         const sources = createElement(document, "div", "kunini-discover-sources");
         const source = createElement(document, "span", "kunini-discover-source", response.source || "TMDb");
         source.title = "This product uses the TMDB API but is not endorsed or certified by TMDB.";
+        if (response.hasMore && typeof onNext === "function") {
+            const next = createElement(document, "button", "kunini-discover-next", "NEXT →");
+            next.type = "button";
+            next.setAttribute("aria-label", `Load the next page of ${headingText}`);
+            next.addEventListener("click", async () => {
+                next.disabled = true;
+                next.setAttribute("aria-busy", "true");
+                next.textContent = "LOADING…";
+                try {
+                    await onNext();
+                } catch (error) {
+                    console.warn("Kunini Discover could not load the next recommendation page", error);
+                } finally {
+                    next.disabled = false;
+                    next.removeAttribute("aria-busy");
+                    next.textContent = "NEXT →";
+                }
+            });
+            sources.append(next);
+        }
         sources.append(source);
         header.append(copy, sources);
 
         const rail = createElement(document, "div", "kunini-discover-rail");
         rail.setAttribute("role", "list");
-        rail.setAttribute("aria-label", "External recommendations");
+        rail.setAttribute("aria-label", headingText);
         response.items.forEach((item) => rail.append(createCard(document, item, itemId, currentHash)));
         section.append(header, rail);
         placeDiscoverSection(container, section);
@@ -641,15 +663,29 @@
 
         completedRouteKey = routeKey;
         const generation = ++renderGeneration;
-        try {
+        const loadRecommendationPage = async (pageNumber, focusFirstCard = false) => {
             const response = await apiClient.ajax({
                 type: "GET",
                 dataType: "json",
-                url: apiClient.getUrl("/KuniniDiscover/recommendations", { itemId, limit: 12 })
+                url: apiClient.getUrl("/KuniniDiscover/recommendations", { itemId, limit: 20, page: pageNumber })
             });
             if (generation === renderGeneration && parseItemId(window.location.hash) === itemId) {
-                render(document, container, itemId, response, hash);
+                const currentPage = Number.isInteger(response.page) && response.page > 0 ? response.page : pageNumber;
+                render(
+                    document,
+                    container,
+                    itemId,
+                    response,
+                    hash,
+                    response.hasMore ? () => loadRecommendationPage(currentPage + 1, true) : null
+                );
+                if (focusFirstCard) {
+                    document.querySelector(`#${sectionId} .kunini-discover-card`)?.focus({ preventScroll: true });
+                }
             }
+        };
+        try {
+            await loadRecommendationPage(1);
         } catch (error) {
             completedRouteKey = null;
             console.warn("Kunini Discover could not load recommendations", error);

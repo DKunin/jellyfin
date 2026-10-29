@@ -65,6 +65,8 @@ status_payload="$(curl --fail --silent http://127.0.0.1:8096/KuniniAuth/status \
 jq -e '.enabled == true and .loginUsername == "KuniniAuth" and (.jellyfinUsername | startswith("kunini-deployment-check-"))' \
     <<<"${status_payload}" >/dev/null
 curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'Discover beyond your library' >/dev/null
+curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'response.heading' >/dev/null
+curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'response.hasMore' >/dev/null
 curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/styles.css | grep -F '.kunini-discover-section' >/dev/null
 
 staging_dir=/home/dekunin/nginx-sites

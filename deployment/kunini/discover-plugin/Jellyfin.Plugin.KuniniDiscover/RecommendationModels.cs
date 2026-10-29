@@ -9,9 +9,17 @@ namespace Jellyfin.Plugin.KuniniDiscover;
 /// </summary>
 /// <param name="Source">The external source name.</param>
 /// <param name="Items">Recommendations absent from the local library.</param>
+/// <param name="Heading">The optional collection heading.</param>
+/// <param name="Subtitle">The optional collection subtitle.</param>
+/// <param name="Page">The current external result page.</param>
+/// <param name="HasMore">Whether another external result page is available.</param>
 public sealed record RecommendationResponse(
     [property: JsonPropertyName("source")] string Source,
-    [property: JsonPropertyName("items")] IReadOnlyList<RecommendationItem> Items);
+    [property: JsonPropertyName("items")] IReadOnlyList<RecommendationItem> Items,
+    [property: JsonPropertyName("heading")] string? Heading = null,
+    [property: JsonPropertyName("subtitle")] string? Subtitle = null,
+    [property: JsonPropertyName("page")] int Page = 1,
+    [property: JsonPropertyName("hasMore")] bool HasMore = false);
 
 /// <summary>
 /// A recommended movie or series that is absent from the local library.
@@ -84,6 +92,12 @@ internal enum RecommendationMediaKind
 }
 internal sealed class TmdbPage
 {
+    [JsonPropertyName("page")]
+    public int Page { get; init; }
+
+    [JsonPropertyName("total_pages")]
+    public int TotalPages { get; init; }
+
     [JsonPropertyName("results")]
     public IReadOnlyList<TmdbCandidate> Results { get; init; } = [];
 }
@@ -116,6 +130,57 @@ internal sealed class TmdbCandidate
 
     [JsonPropertyName("media_type")]
     public string? MediaType { get; init; }
+}
+
+internal sealed class TmdbPersonDetails
+{
+    [JsonPropertyName("id")]
+    public int Id { get; init; }
+
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
+
+    [JsonPropertyName("known_for_department")]
+    public string? KnownForDepartment { get; init; }
+
+    [JsonPropertyName("movie_credits")]
+    public TmdbMovieCredits MovieCredits { get; init; } = new();
+}
+
+internal sealed class TmdbMovieCredits
+{
+    [JsonPropertyName("cast")]
+    public IReadOnlyList<TmdbMovieCredit> Cast { get; init; } = [];
+
+    [JsonPropertyName("crew")]
+    public IReadOnlyList<TmdbMovieCredit> Crew { get; init; } = [];
+}
+
+internal sealed class TmdbMovieCredit
+{
+    [JsonPropertyName("id")]
+    public int Id { get; init; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    [JsonPropertyName("release_date")]
+    public string? ReleaseDate { get; init; }
+
+    [JsonPropertyName("poster_path")]
+    public string? PosterPath { get; init; }
+
+    [JsonPropertyName("overview")]
+    public string? Overview { get; init; }
+
+    [JsonPropertyName("genre_ids")]
+    public IReadOnlyList<int> GenreIds { get; init; } = [];
+
+    [JsonPropertyName("character")]
+    public string? Character { get; init; }
+
+    [JsonPropertyName("job")]
+    public string? Job { get; init; }
 }
 
 internal sealed class TmdbDetails

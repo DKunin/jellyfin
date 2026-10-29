@@ -30,23 +30,45 @@ public sealed class RecommendationService
     }
 
     /// <summary>
-    /// Gets recommendations for a local movie or series.
+    /// Gets recommendations for a local movie or series, or external movie credits for a person.
     /// </summary>
     /// <param name="itemId">The local Jellyfin item identifier.</param>
     /// <param name="userId">The requesting Jellyfin user identifier.</param>
     /// <param name="limit">The maximum result count.</param>
+    /// <param name="page">The one-based external result page.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A response, or <see langword="null"/> when the local item does not exist.</returns>
     public async Task<RecommendationResponse?> GetRecommendationsAsync(
         Guid itemId,
         Guid userId,
         int limit,
+        int page,
         CancellationToken cancellationToken)
     {
         var item = _libraryManager.GetItemById<BaseItem>(itemId, userId);
         if (item is null)
         {
             return null;
+        }
+
+        if (item is Person person)
+        {
+            if (!person.TryGetProviderId(MetadataProvider.Tmdb, out var personTmdbIdValue)
+                || !int.TryParse(personTmdbIdValue, NumberStyles.None, CultureInfo.InvariantCulture, out var personTmdbId)
+                || personTmdbId <= 0)
+            {
+                return new RecommendationResponse("TMDb", []);
+            }
+
+            var localMovieIds = LocalTmdbIds(_libraryManager.GetItemList(new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.Movie],
+                Recursive = true
+            }).OfType<Movie>());
+            var personDetails = await _tmdbClient.GetPersonDetailsAsync(personTmdbId, cancellationToken).ConfigureAwait(false);
+            return personDetails is null
+                ? new RecommendationResponse("TMDb", [])
+                : RecommendationSelector.SelectFilmography(personDetails, person.Name, localMovieIds, limit);
         }
 
         var (kind, itemKind) = item switch
@@ -74,9 +96,14 @@ public sealed class RecommendationService
             .OfType<string>()
             .Where(providerId => !string.IsNullOrWhiteSpace(providerId))
             .ToHashSet(StringComparer.Ordinal);
-        var candidates = await _tmdbClient.GetRecommendationsAsync(kind.Value, tmdbId, cancellationToken).ConfigureAwait(false);
-        var items = RecommendationSelector.Select(candidates, kind.Value, localIds, tmdbId, limit);
-        return new RecommendationResponse("TMDb", items);
+        var candidatePage = await _tmdbClient.GetRecommendationsAsync(kind.Value, tmdbId, page, cancellationToken).ConfigureAwait(false);
+        var items = RecommendationSelector.Select(candidatePage.Results, kind.Value, localIds, tmdbId, limit);
+        var currentPage = candidatePage.Page > 0 ? candidatePage.Page : page;
+        return new RecommendationResponse(
+            "TMDb",
+            items,
+            Page: currentPage,
+            HasMore: currentPage < candidatePage.TotalPages);
     }
 
     /// <summary>

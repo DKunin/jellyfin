@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+using System.Text.Json;
 using Jellyfin.Plugin.KuniniDiscover;
 
 static void Assert(bool condition, string message)
@@ -55,6 +56,61 @@ Assert(searchSelected.Count == 2, "external search must keep only non-local movi
 Assert(searchSelected[0].MediaType == "Movie" && searchSelected[0].Title == "External movie", "movie search metadata must be preserved");
 Assert(searchSelected[0].MatchPercent == 0, "title search results must not invent recommendation match percentages");
 Assert(searchSelected[1].MediaType == "Series" && searchSelected[1].SourceId == 703, "series search results must preserve their media kind and identifier");
+
+var recommendationPage = JsonSerializer.Deserialize<TmdbPage>("""
+    {"page":2,"total_pages":27,"results":[{"id":704,"title":"Next page","release_date":"2023-04-05"}]}
+    """) ?? throw new InvalidOperationException("TMDb recommendation pages must deserialize");
+Assert(recommendationPage.Page == 2 && recommendationPage.TotalPages == 27, "TMDb pagination metadata must be preserved");
+Assert(recommendationPage.Results.Count == 1 && recommendationPage.Results[0].Id == 704, "TMDb pagination results must be preserved");
+
+var actorFilmography = RecommendationSelector.SelectFilmography(
+    new TmdbPersonDetails
+    {
+        Id = 36662,
+        Name = "Carey Mulligan",
+        KnownForDepartment = "Acting",
+        MovieCredits = new TmdbMovieCredits
+        {
+            Cast =
+            [
+                new TmdbMovieCredit { Id = 1000, Title = "Local movie", ReleaseDate = "2025-01-01", Character = "Lead" },
+                new TmdbMovieCredit { Id = 1001, Title = "Newest external", ReleaseDate = "2024-02-02", Character = "Jane", PosterPath = "/person-movie.jpg" },
+                new TmdbMovieCredit { Id = 1001, Title = "Duplicate credit", ReleaseDate = "2024-02-02", Character = "Jane" },
+                new TmdbMovieCredit { Id = 1002, Title = "Older external", ReleaseDate = "2020-03-03", Character = "Mary" }
+            ],
+            Crew = [new TmdbMovieCredit { Id = 2000, Title = "Unrelated crew credit", ReleaseDate = "2023-01-01", Job = "Director" }]
+        }
+    },
+    "Кэри Маллиган",
+    new HashSet<string>(StringComparer.Ordinal) { "1000" },
+    limit: 10);
+Assert(actorFilmography.Heading == "Movies with Кэри Маллиган", "actor filmography must use the local person display name");
+Assert(actorFilmography.Items.Count == 2, "actor filmography must remove local and duplicate movies");
+Assert(actorFilmography.Items[0].SourceId == 1001 && actorFilmography.Items[0].Genre == "as Jane", "actor movies must be newest first and preserve the character");
+Assert(actorFilmography.Items.All(item => item.MediaType == "Movie" && item.MatchPercent == 0), "filmography cards must be movies without invented match scores");
+
+var directorFilmography = RecommendationSelector.SelectFilmography(
+    new TmdbPersonDetails
+    {
+        Id = 525,
+        Name = "Christopher Nolan",
+        KnownForDepartment = "Directing",
+        MovieCredits = new TmdbMovieCredits
+        {
+            Cast = [new TmdbMovieCredit { Id = 3000, Title = "Acting cameo", ReleaseDate = "2024-01-01" }],
+            Crew =
+            [
+                new TmdbMovieCredit { Id = 3001, Title = "Directed movie", ReleaseDate = "2023-07-21", Job = "Director" },
+                new TmdbMovieCredit { Id = 3002, Title = "Produced only", ReleaseDate = "2022-01-01", Job = "Producer" }
+            ]
+        }
+    },
+    "Christopher Nolan",
+    new HashSet<string>(StringComparer.Ordinal),
+    limit: 10);
+Assert(directorFilmography.Heading == "Directed by Christopher Nolan", "director filmography must use a director-specific heading");
+Assert(directorFilmography.Items.Count == 1 && directorFilmography.Items[0].SourceId == 3001, "director filmography must include only directing credits");
+Assert(directorFilmography.Items[0].Genre == "Director", "director cards must identify the credit type");
 
 var details = RecommendationSelector.SelectDetails(
     new TmdbDetails
@@ -138,4 +194,4 @@ var resources = typeof(RecommendationSelector).Assembly.GetManifestResourceNames
 Assert(resources.Contains("Jellyfin.Plugin.KuniniDiscover.Web.kunini-discover.js", StringComparer.Ordinal), "the browser script must be embedded in the plugin assembly");
 Assert(resources.Contains("Jellyfin.Plugin.KuniniDiscover.Web.kunini-discover.css", StringComparer.Ordinal), "the browser stylesheet must be embedded in the plugin assembly");
 
-Console.WriteLine("Kunini Discover tests passed: recommendations, external search, metadata, embedded assets");
+Console.WriteLine("Kunini Discover tests passed: paged recommendations, search, person filmography, metadata, embedded assets");
