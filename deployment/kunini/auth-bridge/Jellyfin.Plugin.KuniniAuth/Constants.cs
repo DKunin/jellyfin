@@ -21,4 +21,9 @@ public static class Constants
     /// Gets the reverse-proxy header containing the stable Kunini user id.
     /// </summary>
     public const string UserIdHeader = "X-Kunini-Auth-User-Id";
+
+    /// <summary>
+    /// Gets the reverse-proxy header marking the dedicated direct-access endpoint.
+    /// </summary>
+    public const string DirectAccessHeader = "X-Kunini-Direct-Access";
 }

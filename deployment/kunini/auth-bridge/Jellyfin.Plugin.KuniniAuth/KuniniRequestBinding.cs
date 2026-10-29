@@ -49,8 +49,11 @@ public static class KuniniRequestBinding
     private static bool IsDirectAccessRequest(HttpRequest request)
     {
         var remoteAddress = request.HttpContext.Connection.RemoteIpAddress;
-        return remoteAddress is not null
-               && KuniniAuthSettings.IsDirectAccessAddress(remoteAddress)
+        var hasTrustedSource = remoteAddress is not null && KuniniAuthSettings.IsDirectAccessAddress(remoteAddress);
+        var hasProxyMarker = request.Headers.TryGetValue(Constants.DirectAccessHeader, out var values)
+                             && values.Count == 1
+                             && string.Equals(values[0], request.Host.Host, StringComparison.OrdinalIgnoreCase);
+        return (hasTrustedSource || hasProxyMarker)
                && KuniniAuthSettings.IsDirectAccessHost(request.Host.Host);
     }
 }

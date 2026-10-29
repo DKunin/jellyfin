@@ -90,6 +90,18 @@ untrustedDirectAccessRequest.Connection.RemoteIpAddress = IPAddress.Parse("172.3
 untrustedDirectAccessRequest.Request.Host = new HostString("media-app.kunini.ru");
 Assert(!KuniniRequestBinding.IsAllowed(untrustedDirectAccessRequest.Request, "dkunin"), "direct host from an untrusted source must fail closed");
 
+var forwardedDirectAccessRequest = new DefaultHttpContext();
+forwardedDirectAccessRequest.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.10");
+forwardedDirectAccessRequest.Request.Host = new HostString("media-app.kunini.ru");
+forwardedDirectAccessRequest.Request.Headers[Constants.DirectAccessHeader] = "media-app.kunini.ru";
+Assert(KuniniRequestBinding.IsAllowed(forwardedDirectAccessRequest.Request, "dkunin"), "proxy-marked direct host must allow forwarded app clients");
+
+var mismatchedDirectAccessMarkerRequest = new DefaultHttpContext();
+mismatchedDirectAccessMarkerRequest.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.10");
+mismatchedDirectAccessMarkerRequest.Request.Host = new HostString("media-app.kunini.ru");
+mismatchedDirectAccessMarkerRequest.Request.Headers[Constants.DirectAccessHeader] = "attacker.example";
+Assert(!KuniniRequestBinding.IsAllowed(mismatchedDirectAccessMarkerRequest.Request, "dkunin"), "mismatched direct proxy marker must fail closed");
+
 var unknownDirectHostRequest = new DefaultHttpContext();
 unknownDirectHostRequest.Connection.RemoteIpAddress = IPAddress.Parse("172.30.0.1");
 unknownDirectHostRequest.Request.Host = new HostString("attacker.example");
@@ -101,4 +113,4 @@ spoofedDirectAccessRequest.Request.Host = new HostString("media-app.kunini.ru");
 spoofedDirectAccessRequest.Request.Headers[Constants.UserHeader] = "attacker";
 Assert(!KuniniRequestBinding.IsAllowed(spoofedDirectAccessRequest.Request, "dkunin"), "partial identity headers on the direct host must fail closed");
 
-Console.WriteLine("Kunini auth bridge tests passed: 17");
+Console.WriteLine("Kunini auth bridge tests passed: 19");
