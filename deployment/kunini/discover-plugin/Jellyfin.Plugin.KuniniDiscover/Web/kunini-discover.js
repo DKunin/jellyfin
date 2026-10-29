@@ -140,8 +140,10 @@
         try {
             const watchUrl = new URL(details?.trailerWatchUrl);
             const embedUrl = new URL(details?.trailerEmbedUrl);
+            const proxyUrl = new URL(details?.trailerProxyUrl, "https://kunini.invalid");
             const watchKey = watchUrl.searchParams.get("v");
             const embedMatch = /^\/embed\/([A-Za-z0-9_-]{6,20})$/.exec(embedUrl.pathname);
+            const proxyMatch = /^\/KuniniDiscover\/trailer\/([A-Za-z0-9_-]{11})$/.exec(proxyUrl.pathname);
             const isTrustedWatch = watchUrl.protocol === "https:"
                 && watchUrl.hostname === "www.youtube.com"
                 && watchUrl.port === ""
@@ -155,10 +157,17 @@
                 && embedUrl.username === ""
                 && embedUrl.password === ""
                 && embedMatch?.[1] === watchKey;
-            return isTrustedWatch && isTrustedEmbed
+            const isTrustedProxy = proxyUrl.origin === "https://kunini.invalid"
+                && proxyUrl.username === ""
+                && proxyUrl.password === ""
+                && proxyMatch?.[1] === watchKey
+                && /^\d{10,12}$/.test(proxyUrl.searchParams.get("expires") || "")
+                && /^[A-Za-z0-9_-]{43}$/.test(proxyUrl.searchParams.get("signature") || "")
+                && [...proxyUrl.searchParams.keys()].sort().join(",") === "expires,signature";
+            return isTrustedWatch && isTrustedEmbed && isTrustedProxy
                 ? {
                     watchUrl: `https://www.youtube.com/watch?v=${watchKey}`,
-                    embedUrl: `https://www.youtube-nocookie.com/embed/${watchKey}?autoplay=0&playsinline=1&rel=0`
+                    proxyUrl: `${proxyUrl.pathname}${proxyUrl.search}`
                 }
                 : null;
         } catch {
@@ -173,7 +182,10 @@
         }
 
         document.removeEventListener("keydown", modal.kuniniKeydownHandler);
-        modal.querySelector("iframe")?.removeAttribute("src");
+        const video = modal.querySelector("video");
+        video?.pause();
+        video?.removeAttribute("src");
+        video?.load();
         modal.remove();
         document.body.classList.remove("kunini-discover-trailer-open");
         if (modal.kuniniReturnFocus?.isConnected) {
@@ -202,23 +214,26 @@
         header.append(title, closeButton);
 
         const player = createElement(document, "div", "kunini-discover-trailer-player");
-        const iframe = createElement(document, "iframe", "kunini-discover-trailer-frame");
-        iframe.src = trailer.embedUrl;
-        iframe.title = `${details.title} official trailer`;
-        iframe.loading = "eager";
-        iframe.referrerPolicy = "strict-origin";
-        iframe.allow = "encrypted-media; picture-in-picture";
-        iframe.allowFullscreen = true;
-        player.append(iframe);
+        const video = createElement(document, "video", "kunini-discover-trailer-frame");
+        video.src = trailer.proxyUrl;
+        video.title = `${details.title} official trailer`;
+        video.controls = true;
+        video.preload = "none";
+        video.playsInline = true;
+        video.setAttribute("controlsList", "nodownload");
+        player.append(video);
 
         const footer = createElement(document, "footer", "kunini-discover-trailer-footer");
-        footer.append(createLink(
-            document,
-            "kunini-discover-trailer-external",
-            "Open on YouTube",
-            trailer.watchUrl,
-            `Open ${details.title} trailer on YouTube`
-        ));
+        footer.append(
+            createElement(document, "span", "kunini-discover-trailer-proxy-status", "STREAMED THROUGH SOCKS PROXY"),
+            createLink(
+                document,
+                "kunini-discover-trailer-external",
+                "Open on YouTube",
+                trailer.watchUrl,
+                `Open ${details.title} trailer on YouTube`
+            )
+        );
         dialog.append(header, player, footer);
         modal.append(dialog);
 
@@ -239,7 +254,7 @@
                 return;
             }
 
-            const focusable = [...dialog.querySelectorAll("button, iframe, a[href]")];
+            const focusable = [...dialog.querySelectorAll("button, video, a[href]")];
             const first = focusable[0];
             const last = focusable[focusable.length - 1];
             if (event.shiftKey && document.activeElement === first) {

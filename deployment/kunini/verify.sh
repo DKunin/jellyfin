@@ -10,20 +10,25 @@ auth_header='Authorization: MediaBrowser Client="Kunini Verification", Device="S
 
 curl --fail --silent "${base_url}/health" >/dev/null
 container_health="$(docker container inspect jellyfin --format '{{.State.Health.Status}}')"
+trailer_proxy_health="$(docker container inspect jellyfin-trailer-proxy --format '{{.State.Health.Status}}')"
 container_digest="$(docker image inspect "$(docker container inspect jellyfin --format '{{.Image}}')" --format '{{index .RepoDigests 0}}' | sed 's/^[^@]*@//')"
 published_port="$(docker port jellyfin 8096/tcp)"
+trailer_published_ports="$(docker port jellyfin-trailer-proxy)"
 media_mode="$(docker container inspect jellyfin --format '{{range .Mounts}}{{if eq .Destination "/media"}}{{.Mode}}{{end}}{{end}}')"
 bridge_mode="$(docker container inspect jellyfin --format '{{range .Mounts}}{{if eq .Destination "/config/plugins/KuniniAuth/Jellyfin.Plugin.KuniniAuth.dll"}}{{.Mode}}{{end}}{{end}}')"
 discover_mode="$(docker container inspect jellyfin --format '{{range .Mounts}}{{if eq .Destination "/config/plugins/KuniniDiscover/Jellyfin.Plugin.KuniniDiscover.dll"}}{{.Mode}}{{end}}{{end}}')"
+trailer_secret_mode="$(docker container inspect jellyfin-trailer-proxy --format '{{range .Mounts}}{{if eq .Destination "/run/secrets/socks-proxy-url"}}{{.Mode}}{{end}}{{end}}')"
 configured_dns="$(docker container inspect jellyfin --format '{{json .HostConfig.Dns}}')"
 container_environment="$(docker container inspect jellyfin --format '{{range .Config.Env}}{{println .}}{{end}}')"
 
-if [[ "${container_health}" != "healthy" || "${container_digest}" != "${expected_digest}" ]]; then
+if [[ "${container_health}" != "healthy" || "${trailer_proxy_health}" != "healthy" \
+    || "${container_digest}" != "${expected_digest}" ]]; then
     echo "Container health or image digest mismatch." >&2
     exit 1
 fi
-if [[ "${published_port}" != "127.0.0.1:8096" || "${media_mode}" != "ro" \
-    || "${bridge_mode}" != "ro" || "${discover_mode}" != "ro" ]]; then
+if [[ "${published_port}" != "127.0.0.1:8096" || -n "${trailer_published_ports}" \
+    || "${media_mode}" != "ro" || "${bridge_mode}" != "ro" || "${discover_mode}" != "ro" \
+    || "${trailer_secret_mode}" != "ro" ]]; then
     echo "Listener or read-only mount mismatch." >&2
     exit 1
 fi
@@ -32,10 +37,12 @@ if [[ "${configured_dns}" != '["9.9.9.9","149.112.112.112"]' ]]; then
     exit 1
 fi
 if ! grep -Fqx 'KUNINI_AUTH_DIRECT_ACCESS_ADDRESSES=172.30.0.1' <<<"${container_environment}" \
-    || ! grep -Fqx "KUNINI_AUTH_DIRECT_ACCESS_HOSTS=${app_domain}" <<<"${container_environment}"; then
+    || ! grep -Fqx "KUNINI_AUTH_DIRECT_ACCESS_HOSTS=${app_domain}" <<<"${container_environment}" \
+    || ! grep -Fqx 'KUNINI_TRAILER_PROXY_URL=http://trailer-proxy:8080/' <<<"${container_environment}"; then
     echo "Direct Jellyfin access trust boundary mismatch." >&2
     exit 1
 fi
+docker exec jellyfin curl --fail --silent http://trailer-proxy:8080/health | grep -Fqx 'ok'
 
 tmdb_api_ip="$(docker exec jellyfin getent ahostsv4 api.themoviedb.org | awk 'NR == 1 { print $1 }')"
 tmdb_image_ip="$(docker exec jellyfin getent ahostsv4 image.tmdb.org | awk 'NR == 1 { print $1 }')"
@@ -79,6 +86,7 @@ jq -e '.[] | select(.Name == "Kunini Auth")' <<<"${providers}" >/dev/null
 curl --fail --silent "${base_url}/KuniniDiscover/script.js" | grep -F 'Discover beyond your library' >/dev/null
 curl --fail --silent "${base_url}/KuniniDiscover/script.js" | grep -F 'response.heading' >/dev/null
 curl --fail --silent "${base_url}/KuniniDiscover/script.js" | grep -F 'response.hasMore' >/dev/null
+curl --fail --silent "${base_url}/KuniniDiscover/script.js" | grep -F 'trailer.proxyUrl' >/dev/null
 curl --fail --silent "${base_url}/KuniniDiscover/styles.css" | grep -F '.kunini-discover-section' >/dev/null
 discover_source_id="$(curl --fail --silent \
     "${base_url}/Items?Recursive=true&IncludeItemTypes=Movie,Series&HasTmdbId=true&Limit=1&Fields=ProviderIds" \
@@ -126,10 +134,22 @@ if [[ -n "${discover_detail_id}" && -n "${discover_detail_type}" ]]; then
         .sourceId == $source_id and (.title | length) > 0 and .year > 1800 and
         (.overview | type == "string") and (.genres | type == "array") and
         (.rating | type == "number") and (.voteCount | type == "number") and
-        ((.trailerWatchUrl == null and .trailerEmbedUrl == null) or
+        ((.trailerWatchUrl == null and .trailerEmbedUrl == null and .trailerProxyUrl == null) or
             ((.trailerWatchUrl | startswith("https://www.youtube.com/watch?v=")) and
-             (.trailerEmbedUrl | startswith("https://www.youtube-nocookie.com/embed/"))))
+             (.trailerEmbedUrl | startswith("https://www.youtube-nocookie.com/embed/")) and
+             (.trailerProxyUrl | startswith("/KuniniDiscover/trailer/"))))
     ' <<<"${discover_detail_response}" >/dev/null
+    discover_trailer_proxy_url="$(jq -r '.trailerProxyUrl // empty' <<<"${discover_detail_response}")"
+    if [[ -n "${discover_trailer_proxy_url}" ]]; then
+        trailer_probe="$(mktemp)"
+        trap 'rm -f "${trailer_probe}"' EXIT
+        trailer_probe_result="$(curl --fail --silent --show-error --range 0-1023 \
+            --output "${trailer_probe}" --write-out '%{http_code} %{content_type} %{size_download}' \
+            "${base_url}${discover_trailer_proxy_url}")"
+        [[ "${trailer_probe_result}" == "206 video/mp4 1024" ]]
+        rm -f "${trailer_probe}"
+        trap - EXIT
+    fi
 fi
 discover_poster_url="$(jq -r '[.items[].posterUrl | select(. != null)][0] // empty' <<<"${discover_response}")"
 if [[ -n "${discover_poster_url}" ]]; then

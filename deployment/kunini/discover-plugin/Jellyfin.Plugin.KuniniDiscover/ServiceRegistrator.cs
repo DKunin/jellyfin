@@ -27,6 +27,15 @@ public sealed class ServiceRegistrator : IPluginServiceRegistrator
             client.Timeout = TimeSpan.FromSeconds(15);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Jellyfin.Plugin.KuniniDiscover/1.0");
         });
+        serviceCollection.AddHttpClient<TrailerProxyClient>(client =>
+        {
+            var configuredUrl = Environment.GetEnvironmentVariable("KUNINI_TRAILER_PROXY_URL");
+            client.BaseAddress = new Uri(
+                string.IsNullOrWhiteSpace(configuredUrl) ? "http://trailer-proxy:8080/" : configuredUrl,
+                UriKind.Absolute);
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        });
+        serviceCollection.AddSingleton<TrailerTokenService>();
         serviceCollection.AddTransient<RecommendationService>();
     }
 }

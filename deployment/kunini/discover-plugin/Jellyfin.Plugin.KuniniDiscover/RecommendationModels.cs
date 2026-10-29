@@ -64,6 +64,7 @@ public sealed record RecommendationItem(
 /// <param name="BackdropUrl">The same-origin backdrop URL.</param>
 /// <param name="TrailerWatchUrl">The external YouTube watch URL, when a trailer is available.</param>
 /// <param name="TrailerEmbedUrl">The privacy-enhanced YouTube embed URL, when a trailer is available.</param>
+/// <param name="TrailerProxyUrl">A short-lived same-origin trailer stream URL.</param>
 public sealed record ExternalDetailResponse(
     [property: JsonPropertyName("sourceId")] int SourceId,
     [property: JsonPropertyName("mediaType")] string MediaType,
@@ -83,7 +84,8 @@ public sealed record ExternalDetailResponse(
     [property: JsonPropertyName("posterUrl")] string? PosterUrl,
     [property: JsonPropertyName("backdropUrl")] string? BackdropUrl,
     [property: JsonPropertyName("trailerWatchUrl")] string? TrailerWatchUrl,
-    [property: JsonPropertyName("trailerEmbedUrl")] string? TrailerEmbedUrl);
+    [property: JsonPropertyName("trailerEmbedUrl")] string? TrailerEmbedUrl,
+    [property: JsonPropertyName("trailerProxyUrl")] string? TrailerProxyUrl = null);
 
 internal enum RecommendationMediaKind
 {

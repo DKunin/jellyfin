@@ -69,11 +69,12 @@ test("accepts only matching privacy-enhanced YouTube trailer URLs", () => {
     assert.deepEqual(
         discover.readTrailerUrls({
             trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
-            trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0"
+            trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0",
+            trailerProxyUrl: "/KuniniDiscover/trailer/8g18jFHCLXk?expires=1793308000&signature=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         }),
         {
             watchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
-            embedUrl: "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0"
+            proxyUrl: "/KuniniDiscover/trailer/8g18jFHCLXk?expires=1793308000&signature=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
         }
     );
 });
@@ -81,11 +82,18 @@ test("accepts only matching privacy-enhanced YouTube trailer URLs", () => {
 test("rejects mismatched or untrusted trailer URLs", () => {
     assert.equal(discover.readTrailerUrls({
         trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
-        trailerEmbedUrl: "https://evil.example/embed/8g18jFHCLXk"
+        trailerEmbedUrl: "https://evil.example/embed/8g18jFHCLXk",
+        trailerProxyUrl: "/KuniniDiscover/trailer/8g18jFHCLXk?expires=1793308000&signature=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     }), null);
     assert.equal(discover.readTrailerUrls({
         trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
-        trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/Different01"
+        trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/Different01",
+        trailerProxyUrl: "/KuniniDiscover/trailer/8g18jFHCLXk?expires=1793308000&signature=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }), null);
+    assert.equal(discover.readTrailerUrls({
+        trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
+        trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/8g18jFHCLXk",
+        trailerProxyUrl: "/KuniniDiscover/trailer/Different01?expires=1793308000&signature=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
     }), null);
 });
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 using System.Globalization;
+using System.Net;
+using System.Net.Http.Headers;
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -18,6 +20,8 @@ public sealed class KuniniDiscoverController : ControllerBase
 {
     private readonly RecommendationService _recommendationService;
     private readonly TmdbPosterClient _posterClient;
+    private readonly TrailerProxyClient _trailerProxyClient;
+    private readonly TrailerTokenService _trailerTokenService;
     private readonly ILogger<KuniniDiscoverController> _logger;
 
     /// <summary>
@@ -25,14 +29,20 @@ public sealed class KuniniDiscoverController : ControllerBase
     /// </summary>
     /// <param name="recommendationService">The recommendation service.</param>
     /// <param name="posterClient">The validated TMDb poster proxy client.</param>
+    /// <param name="trailerProxyClient">The internal trailer stream proxy.</param>
+    /// <param name="trailerTokenService">The trailer URL validator.</param>
     /// <param name="logger">The logger.</param>
     public KuniniDiscoverController(
         RecommendationService recommendationService,
         TmdbPosterClient posterClient,
+        TrailerProxyClient trailerProxyClient,
+        TrailerTokenService trailerTokenService,
         ILogger<KuniniDiscoverController> logger)
     {
         _recommendationService = recommendationService;
         _posterClient = posterClient;
+        _trailerProxyClient = trailerProxyClient;
+        _trailerTokenService = trailerTokenService;
         _logger = logger;
     }
 
@@ -92,6 +102,79 @@ public sealed class KuniniDiscoverController : ControllerBase
             return Problem(
                 statusCode: StatusCodes.Status504GatewayTimeout,
                 title: "TMDb poster proxy timed out");
+        }
+    }
+
+    /// <summary>
+    /// Streams one signed YouTube trailer through the internal SOCKS proxy.
+    /// </summary>
+    [HttpGet("trailer/{videoId}")]
+    [AllowAnonymous]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Trailer(
+        [FromRoute] string videoId,
+        [FromQuery] long expires,
+        [FromQuery] string signature,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_trailerTokenService.IsValid(videoId, expires, signature))
+        {
+            return Unauthorized();
+        }
+
+        var range = Request.Headers.Range.ToString();
+        if (!string.IsNullOrEmpty(range)
+            && (!RangeHeaderValue.TryParse(range, out var parsedRange) || parsedRange.Ranges.Count != 1))
+        {
+            return StatusCode(StatusCodes.Status416RangeNotSatisfiable);
+        }
+
+        try
+        {
+            using var upstream = await _trailerProxyClient
+                .OpenAsync(videoId, range, cancellationToken)
+                .ConfigureAwait(false);
+            if (!TrailerProxyClient.IsExpectedStatus(upstream.StatusCode))
+            {
+                _logger.LogWarning("Trailer proxy returned {StatusCode} for {VideoId}", upstream.StatusCode, videoId);
+                return Problem(
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "Trailer is temporarily unavailable");
+            }
+
+            Response.StatusCode = (int)upstream.StatusCode;
+            Response.ContentType = upstream.Content.Headers.ContentType?.ToString() ?? "video/mp4";
+            if (upstream.Content.Headers.ContentRange is not null)
+            {
+                Response.Headers.ContentRange = upstream.Content.Headers.ContentRange.ToString();
+            }
+            if (upstream.Headers.AcceptRanges.Count > 0)
+            {
+                Response.Headers.AcceptRanges = string.Join(", ", upstream.Headers.AcceptRanges);
+            }
+            Response.Headers.CacheControl = "private, no-store";
+            Response.Headers.XContentTypeOptions = "nosniff";
+            if (upstream.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+            {
+                Response.ContentLength = 0;
+                return new EmptyResult();
+            }
+            Response.ContentLength = upstream.Content.Headers.ContentLength;
+            await upstream.Content.CopyToAsync(Response.Body, cancellationToken).ConfigureAwait(false);
+            return new EmptyResult();
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogWarning(exception, "Trailer proxy failed for {VideoId}", videoId);
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Trailer is temporarily unavailable");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status504GatewayTimeout,
+                title: "Trailer proxy timed out");
         }
     }
 

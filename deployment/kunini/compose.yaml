@@ -17,6 +17,7 @@ services:
       KUNINI_AUTH_RECOVERY_ADDRESSES: 172.30.0.1
       KUNINI_AUTH_DIRECT_ACCESS_ADDRESSES: 172.30.0.1
       KUNINI_AUTH_DIRECT_ACCESS_HOSTS: media-app.kunini.ru
+      KUNINI_TRAILER_PROXY_URL: http://trailer-proxy:8080/
     volumes:
       - /var/apps/jellyfin/config:/config
       - /mnt/data/.jellyfin-cache:/cache
@@ -37,9 +38,45 @@ services:
       - ALL
     restart: unless-stopped
     stop_grace_period: 30s
+    depends_on:
+      trailer-proxy:
+        condition: service_healthy
     networks:
       jellyfin:
         ipv4_address: 172.30.0.2
+
+  trailer-proxy:
+    build:
+      context: ./trailer-proxy
+    image: jellyfin/kunini-trailer-proxy:local
+    container_name: jellyfin-trailer-proxy
+    user: "1000:1000"
+    environment:
+      SOCKS_PROXY_FILE: /run/secrets/socks-proxy-url
+    volumes:
+      - /var/apps/jellyfin/secrets/socks-proxy-url:/run/secrets/socks-proxy-url:ro
+    expose:
+      - "8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 1.0
+    restart: unless-stopped
+    networks:
+      jellyfin:
+        ipv4_address: 172.30.0.3
 
 networks:
   jellyfin:

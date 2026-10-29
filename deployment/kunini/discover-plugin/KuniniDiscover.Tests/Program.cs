@@ -160,6 +160,32 @@ Assert(details.Genres.SequenceEqual(["Science Fiction", "Drama"]), "detail genre
 Assert(details.BackdropUrl == "/KuniniDiscover/poster?path=%2Fbackdrop.jpg&size=w1280", "backdrops must use the larger same-origin image proxy");
 Assert(details.TrailerWatchUrl == "https://www.youtube.com/watch?v=8g18jFHCLXk", "the preferred YouTube trailer must expose a safe watch URL");
 Assert(details.TrailerEmbedUrl == "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0", "trailers must use the privacy-enhanced non-autoplay embed URL");
+Assert(details.TrailerProxyUrl is null, "the pure metadata selector must not issue a signed trailer URL");
+
+var trailerTime = new MutableTimeProvider(new DateTimeOffset(2026, 10, 29, 20, 0, 0, TimeSpan.Zero));
+var trailerTokens = new TrailerTokenService(Enumerable.Repeat((byte)42, 32).ToArray(), trailerTime);
+var trailerPath = trailerTokens.CreatePath("8g18jFHCLXk")
+    ?? throw new InvalidOperationException("valid YouTube identifiers must receive a signed trailer path");
+var trailerUri = new Uri($"https://media.kunini.ru{trailerPath}");
+var trailerQuery = trailerUri.Query.TrimStart('?')
+    .Split('&', StringSplitOptions.RemoveEmptyEntries)
+    .Select(part => part.Split('=', 2))
+    .ToDictionary(part => part[0], part => part[1], StringComparer.Ordinal);
+Assert(trailerUri.AbsolutePath == "/KuniniDiscover/trailer/8g18jFHCLXk", "signed trailer paths must stay on the Jellyfin origin");
+Assert(trailerTokens.IsValid(
+    "8g18jFHCLXk",
+    long.Parse(trailerQuery["expires"], System.Globalization.CultureInfo.InvariantCulture),
+    trailerQuery["signature"]), "fresh signed trailer paths must validate");
+Assert(!trailerTokens.IsValid(
+    "Different01",
+    long.Parse(trailerQuery["expires"], System.Globalization.CultureInfo.InvariantCulture),
+    trailerQuery["signature"]), "a trailer signature must be bound to one video identifier");
+trailerTime.Advance(TimeSpan.FromMinutes(16));
+Assert(!trailerTokens.IsValid(
+    "8g18jFHCLXk",
+    long.Parse(trailerQuery["expires"], System.Globalization.CultureInfo.InvariantCulture),
+    trailerQuery["signature"]), "expired trailer paths must fail closed");
+Assert(trailerTokens.CreatePath("../bad-key") is null, "invalid YouTube identifiers must not receive signed paths");
 
 var seriesDetails = RecommendationSelector.SelectDetails(
     new TmdbDetails
@@ -194,4 +220,13 @@ var resources = typeof(RecommendationSelector).Assembly.GetManifestResourceNames
 Assert(resources.Contains("Jellyfin.Plugin.KuniniDiscover.Web.kunini-discover.js", StringComparer.Ordinal), "the browser script must be embedded in the plugin assembly");
 Assert(resources.Contains("Jellyfin.Plugin.KuniniDiscover.Web.kunini-discover.css", StringComparer.Ordinal), "the browser stylesheet must be embedded in the plugin assembly");
 
-Console.WriteLine("Kunini Discover tests passed: paged recommendations, search, person filmography, metadata, embedded assets");
+Console.WriteLine("Kunini Discover tests passed: paged recommendations, search, person filmography, signed proxy trailers, metadata, embedded assets");
+
+sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
+{
+    private DateTimeOffset _utcNow = utcNow;
+
+    public override DateTimeOffset GetUtcNow() => _utcNow;
+
+    public void Advance(TimeSpan duration) => _utcNow = _utcNow.Add(duration);
+}

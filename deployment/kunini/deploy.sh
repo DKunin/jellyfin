@@ -29,6 +29,7 @@ compose_file="${app_dir}/deployment/compose.yaml"
 
 chmod 0755 "${app_dir}"/deployment/*.sh
 chmod 0700 "${app_dir}/secrets"
+"${app_dir}/deployment/setup-trailer-proxy-secret.sh"
 test -s "${app_dir}/deployment/auth-bridge/build/Jellyfin.Plugin.KuniniAuth.dll"
 test -s "${app_dir}/deployment/discover-plugin/build/Jellyfin.Plugin.KuniniDiscover.dll"
 docker run --rm --volume "${app_dir}/config:/config" alpine:3.22 \
@@ -36,15 +37,22 @@ docker run --rm --volume "${app_dir}/config:/config" alpine:3.22 \
 docker run --rm --volume "${app_dir}/config:/config" alpine:3.22 \
     install -d -o 1000 -g 1000 -m 0750 /config/plugins/KuniniDiscover
 
+rollback_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 if docker container inspect jellyfin >/dev/null 2>&1; then
     previous_image="$(docker container inspect jellyfin --format '{{.Image}}')"
-    rollback_tag="jellyfin/rollback:$(date -u +%Y%m%dT%H%M%SZ)"
+    rollback_tag="jellyfin/rollback:${rollback_stamp}"
     docker image tag "${previous_image}" "${rollback_tag}"
     printf '%s\n' "${rollback_tag}" >"${app_dir}/last-rollback-image"
 fi
+if docker image inspect jellyfin/kunini-trailer-proxy:local >/dev/null 2>&1; then
+    trailer_rollback_tag="jellyfin/kunini-trailer-proxy:rollback-${rollback_stamp}"
+    docker image tag jellyfin/kunini-trailer-proxy:local "${trailer_rollback_tag}"
+    printf '%s\n' "${trailer_rollback_tag}" >"${app_dir}/last-trailer-proxy-rollback-image"
+fi
 
 docker compose -p jellyfin -f "${compose_file}" config >/dev/null
-docker compose -p jellyfin -f "${compose_file}" pull
+docker compose -p jellyfin -f "${compose_file}" pull jellyfin
+docker compose -p jellyfin -f "${compose_file}" build --pull trailer-proxy
 docker compose -p jellyfin -f "${compose_file}" up -d --force-recreate --remove-orphans
 
 for attempt in $(seq 1 60); do
@@ -67,7 +75,9 @@ jq -e '.enabled == true and .loginUsername == "KuniniAuth" and (.jellyfinUsernam
 curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'Discover beyond your library' >/dev/null
 curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'response.heading' >/dev/null
 curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'response.hasMore' >/dev/null
+curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'trailer.proxyUrl' >/dev/null
 curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/styles.css | grep -F '.kunini-discover-section' >/dev/null
+docker exec jellyfin curl --fail --silent http://trailer-proxy:8080/health | grep -F 'ok' >/dev/null
 
 staging_dir=/home/dekunin/nginx-sites
 certbot_config=/home/dekunin/letsencrypt
@@ -85,4 +95,5 @@ for domain in "${domains[@]}"; do
 done
 
 docker container inspect jellyfin --format 'container={{.State.Status}} health={{.State.Health.Status}} image={{.Image}}'
+docker container inspect jellyfin-trailer-proxy --format 'trailer_proxy={{.State.Status}} health={{.State.Health.Status}} image={{.Image}}'
 REMOTE

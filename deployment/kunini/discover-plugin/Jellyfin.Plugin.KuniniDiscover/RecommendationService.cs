@@ -17,16 +17,22 @@ public sealed class RecommendationService
 {
     private readonly ILibraryManager _libraryManager;
     private readonly TmdbRecommendationClient _tmdbClient;
+    private readonly TrailerTokenService _trailerTokenService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RecommendationService"/> class.
     /// </summary>
     /// <param name="libraryManager">The Jellyfin library manager.</param>
     /// <param name="tmdbClient">The TMDb client.</param>
-    public RecommendationService(ILibraryManager libraryManager, TmdbRecommendationClient tmdbClient)
+    /// <param name="trailerTokenService">The short-lived trailer URL signer.</param>
+    public RecommendationService(
+        ILibraryManager libraryManager,
+        TmdbRecommendationClient tmdbClient,
+        TrailerTokenService trailerTokenService)
     {
         _libraryManager = libraryManager;
         _tmdbClient = tmdbClient;
+        _trailerTokenService = trailerTokenService;
     }
 
     /// <summary>
@@ -143,7 +149,18 @@ public sealed class RecommendationService
         CancellationToken cancellationToken)
     {
         var details = await _tmdbClient.GetDetailsAsync(kind, sourceId, cancellationToken).ConfigureAwait(false);
-        return details is null ? null : RecommendationSelector.SelectDetails(details, kind);
+        var selected = details is null ? null : RecommendationSelector.SelectDetails(details, kind);
+        if (selected?.TrailerWatchUrl is null)
+        {
+            return selected;
+        }
+
+        var videoId = new Uri(selected.TrailerWatchUrl).Query
+            .TrimStart('?')
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Split('=', 2))
+            .FirstOrDefault(part => part.Length == 2 && part[0] == "v")?[1];
+        return selected with { TrailerProxyUrl = _trailerTokenService.CreatePath(videoId) };
     }
 
     private static HashSet<string> LocalTmdbIds(IEnumerable<BaseItem> items)
