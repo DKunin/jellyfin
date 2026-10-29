@@ -52,6 +52,7 @@ jq '.KnownProxies = ((.KnownProxies // []) + ["172.30.0.1"] | unique)
     | .EnableRemoteAccess = true
     | .AutoDiscovery = false
     | .EnableUPnP = false
+    | .EnablePublishedServerUriByRequest = true
     | .PublicHttpPort = 80
     | .PublicHttpsPort = 443' <<<"${network_config}" \
     | curl --fail --silent --request POST "${base_url}/System/Configuration/network" \

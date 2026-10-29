@@ -15,6 +15,8 @@ static void Assert(bool condition, string message)
 
 var id = Guid.Parse("cd56b8c8-8282-48db-a010-df725f14231d");
 Environment.SetEnvironmentVariable("KUNINI_AUTH_RECOVERY_ADDRESSES", "172.30.0.1");
+Environment.SetEnvironmentVariable("KUNINI_AUTH_DIRECT_ACCESS_ADDRESSES", "172.30.0.1");
+Environment.SetEnvironmentVariable("KUNINI_AUTH_DIRECT_ACCESS_HOSTS", "media-app.kunini.ru");
 var validHeaders = new HeaderDictionary
 {
     [Constants.UserHeader] = "dkunin",
@@ -73,4 +75,30 @@ proxiedRequestWithoutIdentity.Connection.RemoteIpAddress = IPAddress.Loopback;
 proxiedRequestWithoutIdentity.Request.Host = new HostString("media.kunini.ru");
 Assert(!KuniniRequestBinding.IsAllowed(proxiedRequestWithoutIdentity.Request, "dkunin"), "proxied request without identity must fail closed");
 
-Console.WriteLine("Kunini auth bridge tests passed: 11");
+var directAccessRequest = new DefaultHttpContext();
+directAccessRequest.Connection.RemoteIpAddress = IPAddress.Parse("172.30.0.1");
+directAccessRequest.Request.Host = new HostString("media-app.kunini.ru");
+Assert(KuniniRequestBinding.IsAllowed(directAccessRequest.Request, "dkunin"), "direct host from trusted proxy must allow Jellyfin tokens");
+
+var directAccessTrailingDotRequest = new DefaultHttpContext();
+directAccessTrailingDotRequest.Connection.RemoteIpAddress = IPAddress.Parse("172.30.0.1");
+directAccessTrailingDotRequest.Request.Host = new HostString("media-app.kunini.ru.");
+Assert(KuniniRequestBinding.IsAllowed(directAccessTrailingDotRequest.Request, "dkunin"), "direct host comparison must accept a trailing DNS dot");
+
+var untrustedDirectAccessRequest = new DefaultHttpContext();
+untrustedDirectAccessRequest.Connection.RemoteIpAddress = IPAddress.Parse("172.30.0.9");
+untrustedDirectAccessRequest.Request.Host = new HostString("media-app.kunini.ru");
+Assert(!KuniniRequestBinding.IsAllowed(untrustedDirectAccessRequest.Request, "dkunin"), "direct host from an untrusted source must fail closed");
+
+var unknownDirectHostRequest = new DefaultHttpContext();
+unknownDirectHostRequest.Connection.RemoteIpAddress = IPAddress.Parse("172.30.0.1");
+unknownDirectHostRequest.Request.Host = new HostString("attacker.example");
+Assert(!KuniniRequestBinding.IsAllowed(unknownDirectHostRequest.Request, "dkunin"), "unlisted direct host must fail closed");
+
+var spoofedDirectAccessRequest = new DefaultHttpContext();
+spoofedDirectAccessRequest.Connection.RemoteIpAddress = IPAddress.Parse("172.30.0.1");
+spoofedDirectAccessRequest.Request.Host = new HostString("media-app.kunini.ru");
+spoofedDirectAccessRequest.Request.Headers[Constants.UserHeader] = "attacker";
+Assert(!KuniniRequestBinding.IsAllowed(spoofedDirectAccessRequest.Request, "dkunin"), "partial identity headers on the direct host must fail closed");
+
+Console.WriteLine("Kunini auth bridge tests passed: 17");

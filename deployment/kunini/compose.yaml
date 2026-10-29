@@ -12,10 +12,11 @@ services:
     ports:
       - "127.0.0.1:8096:8096/tcp"
     environment:
-      JELLYFIN_PublishedServerUrl: https://media.kunini.ru
       KUNINI_AUTH_ENABLED: "true"
       KUNINI_AUTH_ADMIN_USERS: dkunin
       KUNINI_AUTH_RECOVERY_ADDRESSES: 172.30.0.1
+      KUNINI_AUTH_DIRECT_ACCESS_ADDRESSES: 172.30.0.1
+      KUNINI_AUTH_DIRECT_ACCESS_HOSTS: media-app.kunini.ru
     volumes:
       - /var/apps/jellyfin/config:/config
       - /mnt/data/.jellyfin-cache:/cache

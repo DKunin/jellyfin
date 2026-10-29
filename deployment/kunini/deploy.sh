@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 ssh "${REMOTE_HOST}" "test -d /mnt/data/plex/movies && test -d /mnt/data/plex/series && test -d /mnt/data/plex/videos"
 ssh "${REMOTE_HOST}" "docker run --rm -v /mnt/data:/host-data alpine:3.22 install -d -o 1000 -g 1000 -m 0750 /host-data/.jellyfin-cache"
+# shellcheck disable=SC2029 # The fixed remote installation path is intentionally expanded locally.
 ssh "${REMOTE_HOST}" "install -d -m 0755 '${REMOTE_DIR}/deployment' '${REMOTE_DIR}/acme' && install -d -m 0750 '${REMOTE_DIR}/config' '${REMOTE_DIR}/secrets'"
 
 rsync -a \
@@ -58,10 +59,19 @@ jq -e '.enabled == true and .loginUsername == "KuniniAuth" and (.jellyfinUsernam
     <<<"${status_payload}" >/dev/null
 
 staging_dir=/home/dekunin/nginx-sites
-site_name=media.kunini.ru.conf
+certbot_config=/home/dekunin/letsencrypt
+domains=(media.kunini.ru media-app.kunini.ru)
 install -d -m 0755 "${staging_dir}"
-install -m 0644 "${app_dir}/deployment/nginx/${site_name}" "${staging_dir}/${site_name}"
-sudo -n /usr/local/sbin/codex-nginx-apply "${site_name}"
+for domain in "${domains[@]}"; do
+    site_name="${domain}.conf"
+    if [[ -s "${certbot_config}/live/${domain}/fullchain.pem" && -s "${certbot_config}/live/${domain}/privkey.pem" ]]; then
+        source_config="${app_dir}/deployment/nginx/${site_name}"
+    else
+        source_config="${app_dir}/deployment/nginx/${domain}.bootstrap.conf"
+    fi
+    install -m 0644 "${source_config}" "${staging_dir}/${site_name}"
+    sudo -n /usr/local/sbin/codex-nginx-apply "${site_name}"
+done
 
 docker container inspect jellyfin --format 'container={{.State.Status}} health={{.State.Health.Status}} image={{.Image}}'
 REMOTE

@@ -22,7 +22,7 @@ public static class KuniniRequestBinding
         var hasUserIdHeader = request.Headers.ContainsKey(Constants.UserIdHeader);
         if (!hasUserHeader && !hasUserIdHeader)
         {
-            return IsLoopbackRecoveryRequest(request);
+            return IsLoopbackRecoveryRequest(request) || IsDirectAccessRequest(request);
         }
 
         if (!KuniniIdentity.TryRead(request.Headers, out var identity) || identity is null)
@@ -44,5 +44,13 @@ public static class KuniniRequestBinding
 
         return string.Equals(request.Host.Host, "localhost", StringComparison.OrdinalIgnoreCase)
                || IPAddress.TryParse(request.Host.Host, out var hostAddress) && IPAddress.IsLoopback(hostAddress);
+    }
+
+    private static bool IsDirectAccessRequest(HttpRequest request)
+    {
+        var remoteAddress = request.HttpContext.Connection.RemoteIpAddress;
+        return remoteAddress is not null
+               && KuniniAuthSettings.IsDirectAccessAddress(remoteAddress)
+               && KuniniAuthSettings.IsDirectAccessHost(request.Host.Host);
     }
 }
