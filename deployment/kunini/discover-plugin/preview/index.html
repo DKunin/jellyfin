@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kunini Discover local preview</title>
+    <link rel="stylesheet" href="../Jellyfin.Plugin.KuniniDiscover/Web/kunini-discover.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #101010; color: #fff; font: 16px system-ui, sans-serif; }
+        .itemDetailPage { min-height: 100vh; background: radial-gradient(circle at 85% 8%, #754b23 0, transparent 38%); }
+        .previewHero { min-height: 390px; padding: 72px 6% 36px; background: linear-gradient(90deg, #101010 0%, rgba(16,16,16,.52) 48%, transparent 82%), linear-gradient(180deg, transparent 55%, #101010 100%), url("assets/desert-hero.png") center/cover; }
+        .previewHero h1 { margin: 0; font-size: clamp(4rem, 8vw, 7rem); font-weight: 300; letter-spacing: .28em; line-height: .9; }
+        .previewHero h1 span,
+        .previewHero h1 small { display: block; }
+        .previewHero h1 small { margin: .55rem 0 0 1.35em; font-size: .24em; letter-spacing: .62em; }
+        .previewMeta { margin: 1rem 0; color: #d5d5d5; }
+        .previewCopy { max-width: 560px; color: #ddd; line-height: 1.55; }
+        .previewPlay { display: inline-block; margin-top: 1.2rem; padding: .75rem 2rem; border-radius: 999px; background: linear-gradient(100deg,#aa5cc3,#00a4dc); }
+        .detailPageSecondaryContainer { padding: 0 0 3rem 6%; }
+        .previewPosterSprite { width: 300%; max-width: none; height: 200%; object-fit: fill; transform: translate(calc(var(--preview-column) * -33.333333%), calc(var(--preview-row) * -50%)); transform-origin: top left; }
+        @media (max-width: 50em) {
+            .previewHero { min-height: 325px; padding: 32px 1.5rem 28px; }
+            .previewHero h1 { font-size: 3rem; }
+            .previewHero h1 small { margin-left: .35em; font-size: .32em; }
+            .detailPageSecondaryContainer { padding-left: 1.5rem; }
+        }
+    </style>
+    <script>
+        window.ApiClient = {
+            getUrl: (path) => path,
+            ajax: async () => ({
+                source: "TMDb",
+                items: [
+                    { title: "Dune", year: 2021, posterUrl: "/preview/assets/recommendation-posters.png", detailsUrl: "https://www.themoviedb.org/movie/438631", genre: "Science fiction", matchPercent: 96 },
+                    { title: "Blade Runner 2049", year: 2017, posterUrl: "/preview/assets/recommendation-posters.png", detailsUrl: "https://www.themoviedb.org/movie/335984", genre: "Science fiction", matchPercent: 93 },
+                    { title: "Arrival", year: 2016, posterUrl: "/preview/assets/recommendation-posters.png", detailsUrl: "https://www.themoviedb.org/movie/329865", genre: "Drama", matchPercent: 90 },
+                    { title: "Chaos Walking", year: 2021, posterUrl: "/preview/assets/recommendation-posters.png", detailsUrl: "https://www.themoviedb.org/movie/412656", genre: "Fantasy", matchPercent: 87 },
+                    { title: "Prince of Persia", year: 2010, posterUrl: "/preview/assets/recommendation-posters.png", detailsUrl: "https://www.themoviedb.org/movie/9543", genre: "Adventure", matchPercent: 84 },
+                    { title: "Star Trek Beyond", year: 2016, posterUrl: "/preview/assets/recommendation-posters.png", detailsUrl: "https://www.themoviedb.org/movie/188927", genre: "Action", matchPercent: 81 }
+                ]
+            })
+        };
+    </script>
+</head>
+<body>
+    <main class="itemDetailPage">
+        <section class="previewHero">
+            <h1><span>DUNE</span><small>PART TWO</small></h1>
+            <div class="previewMeta">2024 · 2h 46m · PG-13</div>
+            <p class="previewCopy">Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.</p>
+            <span class="previewPlay">▶ Play</span>
+        </section>
+        <div class="detailPageSecondaryContainer"></div>
+    </main>
+    <script src="../Jellyfin.Plugin.KuniniDiscover/Web/kunini-discover.js"></script>
+    <script>
+        const applyPreviewPosterSprites = () => {
+            document.querySelectorAll(".kunini-discover-image").forEach((image, index) => {
+                image.classList.add("previewPosterSprite");
+                image.style.setProperty("--preview-column", String(index % 3));
+                image.style.setProperty("--preview-row", String(Math.floor(index / 3)));
+            });
+        };
+        new MutationObserver(applyPreviewPosterSprites).observe(document.body, { childList: true, subtree: true });
+        applyPreviewPosterSprites();
+    </script>
+</body>
+</html>

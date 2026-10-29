@@ -6,6 +6,7 @@ REMOTE_DIR="/var/apps/jellyfin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 "${SCRIPT_DIR}/build-auth-bridge.sh"
+"${SCRIPT_DIR}/build-discover-plugin.sh"
 
 ssh "${REMOTE_HOST}" "test -d /mnt/data/plex/movies && test -d /mnt/data/plex/series && test -d /mnt/data/plex/videos"
 ssh "${REMOTE_HOST}" "docker run --rm -v /mnt/data:/host-data alpine:3.22 install -d -o 1000 -g 1000 -m 0750 /host-data/.jellyfin-cache"
@@ -16,6 +17,9 @@ rsync -a \
     --exclude '.DS_Store' \
     --exclude 'auth-bridge/**/bin' \
     --exclude 'auth-bridge/**/obj' \
+    --exclude 'discover-plugin/**/bin' \
+    --exclude 'discover-plugin/**/obj' \
+    --exclude 'discover-plugin/preview' \
     "${SCRIPT_DIR}/" "${REMOTE_HOST}:${REMOTE_DIR}/deployment/"
 
 ssh "${REMOTE_HOST}" "bash -s" <<'REMOTE'
@@ -26,8 +30,11 @@ compose_file="${app_dir}/deployment/compose.yaml"
 chmod 0755 "${app_dir}"/deployment/*.sh
 chmod 0700 "${app_dir}/secrets"
 test -s "${app_dir}/deployment/auth-bridge/build/Jellyfin.Plugin.KuniniAuth.dll"
+test -s "${app_dir}/deployment/discover-plugin/build/Jellyfin.Plugin.KuniniDiscover.dll"
 docker run --rm --volume "${app_dir}/config:/config" alpine:3.22 \
     install -d -o 1000 -g 1000 -m 0750 /config/plugins/KuniniAuth
+docker run --rm --volume "${app_dir}/config:/config" alpine:3.22 \
+    install -d -o 1000 -g 1000 -m 0750 /config/plugins/KuniniDiscover
 
 if docker container inspect jellyfin >/dev/null 2>&1; then
     previous_image="$(docker container inspect jellyfin --format '{{.Image}}')"
@@ -57,6 +64,8 @@ status_payload="$(curl --fail --silent http://127.0.0.1:8096/KuniniAuth/status \
     --header 'X-Kunini-Auth-User-Id: 902d495e-59a4-4b2d-92b3-d36a1f006c28')"
 jq -e '.enabled == true and .loginUsername == "KuniniAuth" and (.jellyfinUsername | startswith("kunini-deployment-check-"))' \
     <<<"${status_payload}" >/dev/null
+curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'Discover beyond your library' >/dev/null
+curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/styles.css | grep -F '.kunini-discover-section' >/dev/null
 
 staging_dir=/home/dekunin/nginx-sites
 certbot_config=/home/dekunin/letsencrypt

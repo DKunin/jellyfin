@@ -1,0 +1,300 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+.kunini-discover-section {
+    --kunini-discover-accent-a: #aa5cc3;
+    --kunini-discover-accent-b: #00a4dc;
+    --kunini-discover-border: rgba(255, 255, 255, 0.14);
+    box-sizing: border-box;
+    margin: 0 3.3% 2.5rem 0;
+    padding: 1.1rem 0 0.65rem 1.1rem;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 0.8rem;
+    background: linear-gradient(115deg, rgba(30, 32, 34, 0.92), rgba(15, 16, 18, 0.78));
+    color: #fff;
+}
+
+.kunini-discover-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding-right: 1.1rem;
+    margin-bottom: 0.9rem;
+}
+
+.kunini-discover-heading {
+    margin: 0;
+    font: inherit;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.kunini-discover-subtitle {
+    margin: 0.32rem 0 0;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.98rem;
+    line-height: 1.35;
+}
+
+.kunini-discover-sources {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.5rem;
+}
+
+.kunini-discover-source {
+    padding: 0.38rem 0.8rem;
+    border: 1px solid var(--kunini-discover-accent-b);
+    border-radius: 999px;
+    color: #6bd9ff;
+    background: rgba(0, 0, 0, 0.34);
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
+.kunini-discover-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: clamp(10.8rem, 16vw, 14.5rem);
+    gap: 1rem;
+    padding: 0.45rem 1.1rem 1rem 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+    scrollbar-width: thin;
+}
+
+.kunini-discover-card {
+    min-width: 0;
+    outline: none;
+    scroll-snap-align: start;
+}
+
+.kunini-discover-poster {
+    position: relative;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border: 1px solid var(--kunini-discover-border);
+    border-radius: 0.48rem;
+    background: linear-gradient(145deg, #282a2d, #111214);
+    box-shadow: 0 0 0 0 rgba(0, 164, 220, 0);
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.kunini-discover-card:hover .kunini-discover-poster,
+.kunini-discover-card:focus-visible .kunini-discover-poster,
+.kunini-discover-card:focus-within .kunini-discover-poster {
+    border-color: var(--kunini-discover-accent-b);
+    box-shadow: 0 0 0 2px var(--kunini-discover-accent-a), 0 0 0 4px var(--kunini-discover-accent-b);
+    transform: translateY(-0.18rem);
+}
+
+.kunini-discover-image,
+.kunini-discover-poster-fallback {
+    width: 100%;
+    height: 100%;
+}
+
+.kunini-discover-image {
+    display: block;
+    object-fit: cover;
+}
+
+.kunini-discover-poster-fallback {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 1rem;
+    color: rgba(255, 255, 255, 0.74);
+    font-size: 1.05rem;
+    font-weight: 650;
+    text-align: center;
+}
+
+.kunini-discover-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-sizing: border-box;
+    padding: 1rem 0.75rem 4rem;
+    background: linear-gradient(to top, rgba(7, 8, 9, 0.98) 0%, rgba(7, 8, 9, 0.82) 40%, transparent 72%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+}
+
+.kunini-discover-card:hover .kunini-discover-overlay,
+.kunini-discover-card:focus-visible .kunini-discover-overlay,
+.kunini-discover-card:focus-within .kunini-discover-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.kunini-discover-match {
+    color: #55e36c;
+    font-size: 1rem;
+}
+
+.kunini-discover-genre {
+    margin-top: 0.15rem;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.84rem;
+}
+
+.kunini-discover-overlay-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.42rem;
+    margin-top: 0.7rem;
+}
+
+.kunini-discover-details,
+.kunini-discover-availability {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    padding: 0.15rem 0.66rem;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.74rem;
+    font-weight: 650;
+    line-height: 1.15;
+    text-align: center;
+    text-decoration: none;
+}
+
+.kunini-discover-details {
+    border: 1px solid transparent;
+    background: linear-gradient(100deg, var(--kunini-discover-accent-a), var(--kunini-discover-accent-b));
+}
+
+.kunini-discover-availability {
+    border: 1px solid rgba(255, 255, 255, 0.52);
+    background: rgba(13, 15, 17, 0.72);
+}
+
+.kunini-discover-badges {
+    position: absolute;
+    right: 0.62rem;
+    bottom: 0.62rem;
+    left: 0.62rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.kunini-discover-status,
+.kunini-discover-magnet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.65rem;
+    box-sizing: border-box;
+    border-radius: 999px;
+    background: rgba(17, 18, 20, 0.9);
+    font-size: clamp(0.55rem, 0.72vw, 0.68rem);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.kunini-discover-status {
+    flex: 1 1 auto;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    color: #fff;
+}
+
+.kunini-discover-magnet {
+    flex: 0 0 auto;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid var(--kunini-discover-accent-b);
+    color: #fff;
+    text-decoration: none;
+}
+
+.kunini-discover-magnet::before {
+    content: "∪";
+    margin-right: 0.3rem;
+    color: #6bd9ff;
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 0;
+    transform: rotate(180deg);
+}
+
+.kunini-discover-details:hover,
+.kunini-discover-details:focus-visible,
+.kunini-discover-availability:hover,
+.kunini-discover-availability:focus-visible,
+.kunini-discover-magnet:hover,
+.kunini-discover-magnet:focus-visible {
+    filter: brightness(1.18);
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.kunini-discover-caption {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.55rem;
+    padding: 0.62rem 0.08rem 0;
+}
+
+.kunini-discover-title {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: #fff;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 650;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kunini-discover-year {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.78rem;
+}
+
+@media (max-width: 50em) {
+    .kunini-discover-section {
+        margin-right: 0.9rem;
+        padding: 0.9rem 0 0.45rem 0.9rem;
+    }
+    .kunini-discover-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+    .kunini-discover-heading {
+        font-size: 1.45rem;
+    }
+    .kunini-discover-subtitle {
+        max-width: 32rem;
+        font-size: 0.88rem;
+    }
+    .kunini-discover-rail {
+        grid-auto-columns: min(44vw, 12rem);
+        gap: 0.8rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kunini-discover-poster,
+    .kunini-discover-overlay {
+        transition: none;
+    }
+}

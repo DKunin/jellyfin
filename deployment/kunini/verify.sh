@@ -14,6 +14,7 @@ container_digest="$(docker image inspect "$(docker container inspect jellyfin --
 published_port="$(docker port jellyfin 8096/tcp)"
 media_mode="$(docker container inspect jellyfin --format '{{range .Mounts}}{{if eq .Destination "/media"}}{{.Mode}}{{end}}{{end}}')"
 bridge_mode="$(docker container inspect jellyfin --format '{{range .Mounts}}{{if eq .Destination "/config/plugins/KuniniAuth/Jellyfin.Plugin.KuniniAuth.dll"}}{{.Mode}}{{end}}{{end}}')"
+discover_mode="$(docker container inspect jellyfin --format '{{range .Mounts}}{{if eq .Destination "/config/plugins/KuniniDiscover/Jellyfin.Plugin.KuniniDiscover.dll"}}{{.Mode}}{{end}}{{end}}')"
 configured_dns="$(docker container inspect jellyfin --format '{{json .HostConfig.Dns}}')"
 container_environment="$(docker container inspect jellyfin --format '{{range .Config.Env}}{{println .}}{{end}}')"
 
@@ -21,7 +22,8 @@ if [[ "${container_health}" != "healthy" || "${container_digest}" != "${expected
     echo "Container health or image digest mismatch." >&2
     exit 1
 fi
-if [[ "${published_port}" != "127.0.0.1:8096" || "${media_mode}" != "ro" || "${bridge_mode}" != "ro" ]]; then
+if [[ "${published_port}" != "127.0.0.1:8096" || "${media_mode}" != "ro" \
+    || "${bridge_mode}" != "ro" || "${discover_mode}" != "ro" ]]; then
     echo "Listener or read-only mount mismatch." >&2
     exit 1
 fi
@@ -74,6 +76,20 @@ admin_user_id="$(jq -r '.User.Id' <<<"${auth_result}")"
 token_header="Authorization: MediaBrowser Token=\"${access_token}\""
 providers="$(curl --fail --silent "${base_url}/Auth/Providers" --header "${token_header}")"
 jq -e '.[] | select(.Name == "Kunini Auth")' <<<"${providers}" >/dev/null
+curl --fail --silent "${base_url}/KuniniDiscover/script.js" | grep -F 'Discover beyond your library' >/dev/null
+curl --fail --silent "${base_url}/KuniniDiscover/styles.css" | grep -F '.kunini-discover-section' >/dev/null
+discover_source_id="$(curl --fail --silent \
+    "${base_url}/Items?Recursive=true&IncludeItemTypes=Movie,Series&HasTmdbId=true&Limit=1&Fields=ProviderIds" \
+    --header "${token_header}" | jq -r '.Items[0].Id // empty')"
+if [[ -z "${discover_source_id}" ]]; then
+    echo "No TMDb-backed movie or series is available for Discover verification." >&2
+    exit 1
+fi
+discover_response="$(curl --fail --silent \
+    "${base_url}/KuniniDiscover/recommendations?itemId=${discover_source_id}&limit=5" \
+    --header "${token_header}")"
+jq -e '.source == "TMDb" and (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800)' \
+    <<<"${discover_response}" >/dev/null
 network_config="$(curl --fail --silent "${base_url}/System/Configuration/network" --header "${token_header}")"
 if ! jq -e '.EnablePublishedServerUriByRequest == true' <<<"${network_config}" >/dev/null; then
     echo "Request-derived published server URLs are not enabled." >&2

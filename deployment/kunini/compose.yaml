@@ -22,6 +22,7 @@ services:
       - /mnt/data/.jellyfin-cache:/cache
       - /mnt/data/plex:/media:ro
       - /var/apps/jellyfin/deployment/auth-bridge/build/Jellyfin.Plugin.KuniniAuth.dll:/config/plugins/KuniniAuth/Jellyfin.Plugin.KuniniAuth.dll:ro
+      - /var/apps/jellyfin/deployment/discover-plugin/build/Jellyfin.Plugin.KuniniDiscover.dll:/config/plugins/KuniniDiscover/Jellyfin.Plugin.KuniniDiscover.dll:ro
     devices:
       - /dev/dri/renderD128:/dev/dri/renderD128
     healthcheck:
