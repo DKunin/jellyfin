@@ -90,6 +90,19 @@ discover_response="$(curl --fail --silent \
     --header "${token_header}")"
 jq -e '.source == "TMDb" and (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800)' \
     <<<"${discover_response}" >/dev/null
+discover_detail_id="$(jq -r '.items[0].sourceId // empty' <<<"${discover_response}")"
+discover_detail_type="$(jq -r '.items[0].mediaType // empty' <<<"${discover_response}")"
+if [[ -n "${discover_detail_id}" && -n "${discover_detail_type}" ]]; then
+    discover_detail_response="$(curl --fail --silent --get "${base_url}/KuniniDiscover/details" \
+        --header "${token_header}" \
+        --data-urlencode "sourceId=${discover_detail_id}" \
+        --data-urlencode "mediaType=${discover_detail_type}")"
+    jq -e --argjson source_id "${discover_detail_id}" '
+        .sourceId == $source_id and (.title | length) > 0 and .year > 1800 and
+        (.overview | type == "string") and (.genres | type == "array") and
+        (.rating | type == "number") and (.voteCount | type == "number")
+    ' <<<"${discover_detail_response}" >/dev/null
+fi
 discover_poster_url="$(jq -r '[.items[].posterUrl | select(. != null)][0] // empty' <<<"${discover_response}")"
 if [[ -n "${discover_poster_url}" ]]; then
     discover_poster_type="$(curl --fail --silent --output /dev/null --write-out '%{content_type}' \

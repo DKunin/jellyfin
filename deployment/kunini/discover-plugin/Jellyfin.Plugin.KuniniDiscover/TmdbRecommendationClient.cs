@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -55,5 +56,39 @@ public sealed class TmdbRecommendationClient
             }).ConfigureAwait(false);
 
         return result ?? [];
+    }
+
+    /// <summary>
+    /// Gets full TMDb metadata for one recommended movie or series.
+    /// </summary>
+    /// <param name="kind">The media kind.</param>
+    /// <param name="tmdbId">The TMDb identifier.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The TMDb details, or <see langword="null"/> when the title does not exist.</returns>
+    internal async Task<TmdbDetails?> GetDetailsAsync(
+        RecommendationMediaKind kind,
+        int tmdbId,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = string.Create(CultureInfo.InvariantCulture, $"kunini-discover:details:{kind}:{tmdbId}");
+        return await _cache.GetOrCreateAsync(
+            cacheKey,
+            async cacheEntry =>
+            {
+                cacheEntry.AbsoluteExpirationRelativeToNow = CacheDuration;
+                var mediaPath = kind == RecommendationMediaKind.Movie ? "movie" : "tv";
+                var append = kind == RecommendationMediaKind.Movie ? "release_dates" : "content_ratings";
+                var requestUri = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{mediaPath}/{tmdbId}?api_key={Uri.EscapeDataString(DiscoverSettings.TmdbApiKey)}&language=en-US&append_to_response={append}");
+                using var response = await _httpClient.GetAsync(requestUri, cancellationToken).ConfigureAwait(false);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<TmdbDetails>(cancellationToken: cancellationToken).ConfigureAwait(false);
+            }).ConfigureAwait(false);
     }
 }

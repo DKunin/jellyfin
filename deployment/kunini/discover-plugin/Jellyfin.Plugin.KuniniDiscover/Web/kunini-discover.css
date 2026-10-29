@@ -92,7 +92,7 @@
 }
 
 .kunini-discover-image,
-.kunini-discover-poster-fallback {
+.kunini-discover-image-fallback {
     width: 100%;
     height: 100%;
 }
@@ -102,7 +102,7 @@
     object-fit: cover;
 }
 
-.kunini-discover-poster-fallback {
+.kunini-discover-image-fallback {
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -153,8 +153,7 @@
     margin-top: 0.7rem;
 }
 
-.kunini-discover-details,
-.kunini-discover-availability {
+.kunini-discover-details {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -167,16 +166,8 @@
     line-height: 1.15;
     text-align: center;
     text-decoration: none;
-}
-
-.kunini-discover-details {
     border: 1px solid transparent;
     background: linear-gradient(100deg, var(--kunini-discover-accent-a), var(--kunini-discover-accent-b));
-}
-
-.kunini-discover-availability {
-    border: 1px solid rgba(255, 255, 255, 0.52);
-    background: rgba(13, 15, 17, 0.72);
 }
 
 .kunini-discover-badges {
@@ -233,8 +224,6 @@
 
 .kunini-discover-details:hover,
 .kunini-discover-details:focus-visible,
-.kunini-discover-availability:hover,
-.kunini-discover-availability:focus-visible,
 .kunini-discover-magnet:hover,
 .kunini-discover-magnet:focus-visible {
     filter: brightness(1.18);
@@ -269,6 +258,258 @@
     font-size: 0.78rem;
 }
 
+.itemDetailPage.kunini-discover-external-active > :not(#kunini-discover-external-detail) {
+    display: none !important;
+}
+
+.kunini-discover-external-detail {
+    --kunini-discover-accent-a: #aa5cc3;
+    --kunini-discover-accent-b: #00a4dc;
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    background: #101010;
+    color: #fff;
+}
+
+.kunini-discover-external-hero {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 25rem;
+    overflow: hidden;
+    background: #151719;
+}
+
+.kunini-discover-external-backdrop,
+.kunini-discover-external-backdrop-fallback {
+    width: 100%;
+    height: 100%;
+}
+
+.kunini-discover-external-backdrop {
+    display: block;
+    object-fit: cover;
+    object-position: center 24%;
+    opacity: 0.62;
+}
+
+.kunini-discover-external-backdrop-shade {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(16, 16, 16, 0.7) 0%, rgba(16, 16, 16, 0.12) 60%, rgba(16, 16, 16, 0.32) 100%),
+        linear-gradient(180deg, rgba(16, 16, 16, 0.08) 34%, #101010 100%);
+}
+
+.kunini-discover-external-back {
+    position: absolute;
+    z-index: 2;
+    top: 1.5rem;
+    left: 3.3%;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.3rem;
+    padding: 0.2rem 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 999px;
+    background: rgba(12, 13, 15, 0.68);
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 650;
+    text-decoration: none;
+    backdrop-filter: blur(0.5rem);
+}
+
+.kunini-discover-external-content {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(15rem, 20rem) minmax(0, 1fr);
+    gap: clamp(2.5rem, 4vw, 4.5rem);
+    box-sizing: border-box;
+    min-height: 100vh;
+    padding: 6.8rem 3.3% 4rem;
+}
+
+.kunini-discover-external-poster {
+    align-self: start;
+    aspect-ratio: 2 / 3;
+    margin-top: 1.4rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0.45rem;
+    background: linear-gradient(145deg, #282a2d, #111214);
+    box-shadow: 0 1.25rem 3.5rem rgba(0, 0, 0, 0.42);
+}
+
+.kunini-discover-external-poster-image,
+.kunini-discover-external-poster-image-fallback {
+    width: 100%;
+    height: 100%;
+}
+
+.kunini-discover-external-poster-image {
+    display: block;
+    object-fit: cover;
+}
+
+.kunini-discover-external-poster-image-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 1.5rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 1.35rem;
+    font-weight: 650;
+    text-align: center;
+}
+
+.kunini-discover-external-copy {
+    align-self: start;
+    max-width: 58rem;
+    padding-top: 8.1rem;
+}
+
+.kunini-discover-external-title {
+    margin: 0;
+    color: #fff;
+    font: inherit;
+    font-size: clamp(2rem, 4.4vw, 3.5rem);
+    font-weight: 650;
+    line-height: 1.04;
+    letter-spacing: -0.025em;
+}
+
+.kunini-discover-external-title:focus {
+    outline: none;
+}
+
+.kunini-discover-external-original-title {
+    margin: 0.55rem 0 0;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 1.05rem;
+}
+
+.kunini-discover-external-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.85rem;
+    margin-top: 0.9rem;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.98rem;
+}
+
+.kunini-discover-external-meta-item + .kunini-discover-external-meta-item::before {
+    content: "·";
+    margin-right: 0.85rem;
+    color: rgba(255, 255, 255, 0.42);
+}
+
+.kunini-discover-external-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.kunini-discover-external-magnet,
+.kunini-discover-external-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.65rem;
+    box-sizing: border-box;
+    padding: 0.35rem 1.15rem;
+    border-radius: 999px;
+    font-size: 0.86rem;
+    font-weight: 750;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.kunini-discover-external-magnet {
+    border: 1px solid transparent;
+    background: linear-gradient(100deg, var(--kunini-discover-accent-a), var(--kunini-discover-accent-b));
+    color: #fff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.26), 0 0.65rem 1.6rem rgba(0, 164, 220, 0.18);
+}
+
+.kunini-discover-external-magnet::before {
+    content: "∪";
+    margin-right: 0.45rem;
+    font-size: 1.25rem;
+    font-weight: 900;
+    line-height: 0;
+    transform: rotate(180deg);
+}
+
+.kunini-discover-external-status {
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    background: rgba(13, 15, 17, 0.7);
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.kunini-discover-external-back:hover,
+.kunini-discover-external-back:focus-visible,
+.kunini-discover-external-magnet:hover,
+.kunini-discover-external-magnet:focus-visible {
+    filter: brightness(1.16);
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.kunini-discover-external-tagline {
+    margin: 2.25rem 0 0;
+    color: rgba(255, 255, 255, 0.78);
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.kunini-discover-external-overview {
+    max-width: 54rem;
+    margin: 1.25rem 0 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 1.02rem;
+    line-height: 1.62;
+}
+
+.kunini-discover-external-facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.55rem 1.25rem;
+    margin: 2rem 0 0;
+    font-size: 0.94rem;
+}
+
+.kunini-discover-external-fact-label,
+.kunini-discover-external-fact-value {
+    margin: 0;
+}
+
+.kunini-discover-external-fact-label {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.kunini-discover-external-fact-value {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+}
+
+.kunini-discover-external-error {
+    box-sizing: border-box;
+    padding: 15vh 6%;
+}
+
+.kunini-discover-external-error .kunini-discover-external-back {
+    position: static;
+    margin-top: 1.5rem;
+}
+
 @media (max-width: 50em) {
     .kunini-discover-section {
         margin-right: 0.9rem;
@@ -290,11 +531,38 @@
         grid-auto-columns: min(44vw, 12rem);
         gap: 0.8rem;
     }
+    .kunini-discover-external-hero {
+        height: 20rem;
+    }
+    .kunini-discover-external-back {
+        top: 1rem;
+        left: 1.5rem;
+    }
+    .kunini-discover-external-content {
+        grid-template-columns: 1fr;
+        gap: 1.6rem;
+        padding: 4.75rem 1.5rem 3rem;
+    }
+    .kunini-discover-external-poster {
+        width: min(52vw, 13rem);
+        margin: 1.5rem auto 0;
+    }
+    .kunini-discover-external-copy {
+        max-width: none;
+        padding-top: 0;
+    }
+    .kunini-discover-external-title {
+        font-size: clamp(2rem, 9vw, 3rem);
+    }
+    .kunini-discover-external-tagline {
+        margin-top: 1.75rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .kunini-discover-poster,
-    .kunini-discover-overlay {
+    .kunini-discover-overlay,
+    .kunini-discover-external-magnet {
         transition: none;
     }
 }

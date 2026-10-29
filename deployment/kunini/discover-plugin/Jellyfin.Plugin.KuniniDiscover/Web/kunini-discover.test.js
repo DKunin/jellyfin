@@ -21,3 +21,23 @@ test("reads only Jellyfin detail-page item identifiers", () => {
     assert.equal(discover.parseItemId(`#/home?id=${itemId}`), null);
     assert.equal(discover.parseItemId("#/details?id=not-an-id"), null);
 });
+
+test("builds and parses same-origin external detail routes", () => {
+    const itemId = "3cf2cc5c1467441a9f8bb42babc2eb7d";
+    const originalHash = `#/details?id=${itemId}&serverId=test`;
+    const externalHash = discover.buildExternalDetailHash(originalHash, { sourceId: 438631, mediaType: "Movie" });
+    assert.equal(
+        externalHash,
+        `#/details?id=${itemId}&serverId=test&kuniniSourceId=438631&kuniniMediaType=Movie`
+    );
+    assert.deepEqual(discover.parseExternalRoute(externalHash), { itemId, sourceId: 438631, mediaType: "Movie" });
+    assert.equal(discover.stripExternalDetailHash(externalHash), originalHash);
+    assert.equal(discover.parseExternalRoute(`${originalHash}&kuniniSourceId=bad&kuniniMediaType=Movie`), null);
+});
+
+test("formats external runtimes like Jellyfin", () => {
+    assert.equal(discover.formatRuntime(128), "2h 8m");
+    assert.equal(discover.formatRuntime(120), "2h");
+    assert.equal(discover.formatRuntime(42), "42m");
+    assert.equal(discover.formatRuntime(null), null);
+});

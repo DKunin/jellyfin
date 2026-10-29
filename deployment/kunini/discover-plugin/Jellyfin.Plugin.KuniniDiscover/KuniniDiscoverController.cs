@@ -59,22 +59,24 @@ public sealed class KuniniDiscoverController : ControllerBase
     /// </summary>
     /// <param name="path">The TMDb poster path.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The poster as a same-origin JPEG.</returns>
+    /// <param name="size">The TMDb image size.</param>
+    /// <returns>The poster or backdrop as a same-origin image.</returns>
     [HttpGet("poster")]
     [AllowAnonymous]
     [ResponseCache(Duration = 21600, Location = ResponseCacheLocation.Any)]
     public async Task<IActionResult> Poster(
         [FromQuery] string path,
+        [FromQuery] string size = "w500",
         CancellationToken cancellationToken = default)
     {
-        if (!TmdbPosterClient.IsValidPosterPath(path))
+        if (!TmdbPosterClient.IsValidPosterPath(path) || !TmdbPosterClient.IsValidSize(size))
         {
             return BadRequest();
         }
 
         try
         {
-            var image = await _posterClient.GetPosterAsync(path, cancellationToken).ConfigureAwait(false);
+            var image = await _posterClient.GetPosterAsync(path, size, cancellationToken).ConfigureAwait(false);
             return File(image.Bytes, image.ContentType);
         }
         catch (HttpRequestException exception)
@@ -90,6 +92,51 @@ public sealed class KuniniDiscoverController : ControllerBase
             return Problem(
                 statusCode: StatusCodes.Status504GatewayTimeout,
                 title: "TMDb poster proxy timed out");
+        }
+    }
+
+    /// <summary>
+    /// Gets full metadata for one external TMDb recommendation.
+    /// </summary>
+    /// <param name="sourceId">The TMDb identifier.</param>
+    /// <param name="mediaType">Movie or Series.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The external metadata rendered by the Jellyfin-style detail page.</returns>
+    [HttpGet("details")]
+    [Authorize]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Details(
+        [FromQuery] int sourceId,
+        [FromQuery] string mediaType,
+        CancellationToken cancellationToken = default)
+    {
+        if (sourceId <= 0
+            || !Enum.TryParse<RecommendationMediaKind>(mediaType, true, out var kind)
+            || !Enum.IsDefined(kind))
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var result = await _recommendationService
+                .GetExternalDetailsAsync(sourceId, kind, cancellationToken)
+                .ConfigureAwait(false);
+            return result is null ? NotFound() : Ok(result);
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogWarning(exception, "TMDb details failed for {MediaType} {SourceId}", kind, sourceId);
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "TMDb details are temporarily unavailable");
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "TMDb details timed out for {MediaType} {SourceId}", kind, sourceId);
+            return Problem(
+                statusCode: StatusCodes.Status504GatewayTimeout,
+                title: "TMDb details timed out");
         }
     }
 

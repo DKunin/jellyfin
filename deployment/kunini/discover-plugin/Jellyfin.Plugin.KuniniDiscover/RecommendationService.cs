@@ -78,4 +78,20 @@ public sealed class RecommendationService
         var items = RecommendationSelector.Select(candidates, kind.Value, localIds, tmdbId, limit);
         return new RecommendationResponse("TMDb", items);
     }
+
+    /// <summary>
+    /// Gets full metadata for one external recommendation.
+    /// </summary>
+    /// <param name="sourceId">The TMDb identifier.</param>
+    /// <param name="kind">The media kind.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The external details, or <see langword="null"/> when unavailable.</returns>
+    internal async Task<ExternalDetailResponse?> GetExternalDetailsAsync(
+        int sourceId,
+        RecommendationMediaKind kind,
+        CancellationToken cancellationToken)
+    {
+        var details = await _tmdbClient.GetDetailsAsync(kind, sourceId, cancellationToken).ConfigureAwait(false);
+        return details is null ? null : RecommendationSelector.SelectDetails(details, kind);
+    }
 }

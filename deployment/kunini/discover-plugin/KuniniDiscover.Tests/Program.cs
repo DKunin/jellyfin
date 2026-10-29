@@ -40,10 +40,66 @@ var seriesSelected = RecommendationSelector.Select(
     limit: 10);
 Assert(seriesSelected.Count == 1, "a series recommendation must be selected");
 Assert(seriesSelected[0].MediaType == "Series" && seriesSelected[0].Year == 2001, "series metadata must use name and first_air_date");
-Assert(seriesSelected[0].DetailsUrl == "https://www.themoviedb.org/tv/500", "series details must use the TMDb TV route");
+
+var details = RecommendationSelector.SelectDetails(
+    new TmdbDetails
+    {
+        Id = 300,
+        MovieTitle = "External",
+        OriginalMovieTitle = "External Original",
+        MovieReleaseDate = "2022-01-01",
+        MovieRuntimeMinutes = 128,
+        Rating = 7.84,
+        VoteCount = 1234,
+        Tagline = "Beyond the library.",
+        Overview = "A complete external synopsis.",
+        Status = "Released",
+        PosterPath = "/poster.jpg",
+        BackdropPath = "/backdrop.jpg",
+        Genres = [new TmdbGenre { Name = "Science Fiction" }, new TmdbGenre { Name = "Drama" }],
+        MovieReleaseDates = new TmdbReleaseDateCollection
+        {
+            Results =
+            [
+                new TmdbReleaseCountry
+                {
+                    CountryCode = "US",
+                    ReleaseDates = [new TmdbReleaseDateEntry { Certification = "PG-13" }]
+                }
+            ]
+        }
+    },
+    RecommendationMediaKind.Movie)
+    ?? throw new InvalidOperationException("full external details must be selected");
+Assert(details.Title == "External" && details.OriginalTitle == "External Original", "detail titles must be preserved");
+Assert(details.RuntimeMinutes == 128 && details.Certification == "PG-13", "runtime and certification must be preserved");
+Assert(details.Rating == 7.8 && details.VoteCount == 1234, "rating metadata must be normalized");
+Assert(details.Genres.SequenceEqual(["Science Fiction", "Drama"]), "detail genres must be preserved");
+Assert(details.BackdropUrl == "/KuniniDiscover/poster?path=%2Fbackdrop.jpg&size=w1280", "backdrops must use the larger same-origin image proxy");
+
+var seriesDetails = RecommendationSelector.SelectDetails(
+    new TmdbDetails
+    {
+        Id = 500,
+        SeriesTitle = "External series",
+        SeriesReleaseDate = "2001-10-02",
+        SeasonCount = 9,
+        LastEpisodeToAir = new TmdbEpisode { RuntimeMinutes = 24 },
+        SeriesContentRatings = new TmdbContentRatingCollection
+        {
+            Results = [new TmdbContentRating { CountryCode = "US", Rating = "TV-14" }]
+        }
+    },
+    RecommendationMediaKind.Series)
+    ?? throw new InvalidOperationException("full external series details must be selected");
+Assert(seriesDetails.RuntimeMinutes == 24, "series runtime must fall back to the latest episode when TMDb omits episode_run_time");
+Assert(seriesDetails.SeasonCount == 9 && seriesDetails.Certification == "TV-14", "series seasons and content rating must be preserved");
+
 Assert(TmdbPosterClient.IsValidPosterPath("/valid_TMDb-poster.jpg"), "valid TMDb poster paths must be accepted");
 Assert(!TmdbPosterClient.IsValidPosterPath("https://example.com/poster.jpg"), "absolute poster URLs must be rejected");
 Assert(!TmdbPosterClient.IsValidPosterPath("/../poster.jpg"), "path traversal must be rejected");
+Assert(TmdbPosterClient.IsValidSize("w500") && TmdbPosterClient.IsValidSize("w1280"), "supported TMDb image sizes must be accepted");
+Assert(!TmdbPosterClient.IsValidSize("original"), "unbounded TMDb image sizes must be rejected");
 
 var resources = typeof(RecommendationSelector).Assembly.GetManifestResourceNames();
 Assert(resources.Contains("Jellyfin.Plugin.KuniniDiscover.Web.kunini-discover.js", StringComparer.Ordinal), "the browser script must be embedded in the plugin assembly");

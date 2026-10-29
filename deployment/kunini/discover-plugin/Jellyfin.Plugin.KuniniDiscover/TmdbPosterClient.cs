@@ -27,19 +27,27 @@ public sealed class TmdbPosterClient
     }
 
     /// <summary>
-    /// Gets one TMDb poster as a JPEG.
+    /// Gets one TMDb image in a supported TMDb size.
     /// </summary>
-    /// <param name="posterPath">The validated TMDb poster path.</param>
+    /// <param name="posterPath">The validated TMDb image path.</param>
+    /// <param name="size">The validated TMDb image size.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The poster bytes and verified image media type.</returns>
-    public async Task<PosterImage> GetPosterAsync(string posterPath, CancellationToken cancellationToken)
+    public async Task<PosterImage> GetPosterAsync(
+        string posterPath,
+        string size,
+        CancellationToken cancellationToken)
     {
         if (!IsValidPosterPath(posterPath))
         {
             throw new ArgumentException("Invalid TMDb poster path.", nameof(posterPath));
         }
+        if (!IsValidSize(size))
+        {
+            throw new ArgumentException("Invalid TMDb image size.", nameof(size));
+        }
 
-        var cacheKey = "kunini-discover:poster:" + posterPath;
+        var cacheKey = "kunini-discover:poster:" + size + ":" + posterPath;
         var image = await _cache.GetOrCreateAsync(
             cacheKey,
             async cacheEntry =>
@@ -47,7 +55,7 @@ public sealed class TmdbPosterClient
                 cacheEntry.AbsoluteExpirationRelativeToNow = CacheDuration;
                 var requestUri = string.Create(
                     CultureInfo.InvariantCulture,
-                    $"image.tmdb.org/t/p/w500{posterPath}");
+                    $"image.tmdb.org/t/p/{size}{posterPath}");
                 using var response = await _httpClient.GetAsync(requestUri, cancellationToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
                 var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
@@ -76,6 +84,9 @@ public sealed class TmdbPosterClient
 
         return posterPath.AsSpan(1).IndexOfAnyExcept("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.") < 0;
     }
+
+    internal static bool IsValidSize(string? size)
+        => size is "w500" or "w1280";
 }
 
 /// <summary>
