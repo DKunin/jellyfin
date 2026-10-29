@@ -8,7 +8,13 @@
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #101010; color: #fff; font: 16px system-ui, sans-serif; }
+        .hide { display: none !important; }
         .itemDetailPage { min-height: 100vh; background: radial-gradient(circle at 85% 8%, #754b23 0, transparent 38%); }
+        #searchPage { min-height: 100vh; padding-top: 3rem; }
+        .previewSearchForm { display: flex; align-items: center; gap: 1.4rem; padding: 0 5%; }
+        .previewSearchIcon { color: #c8c8c8; font-size: 3rem; line-height: 1; }
+        .previewSearchInput { width: 100%; height: 5rem; padding: 0 1rem; border: .28rem solid #3a3a3a; border-radius: .45rem; outline: none; background: #242424; color: #eee; font: inherit; font-size: 2rem; }
+        .noItemsMessage { margin-top: 9rem; color: #bcbcbc; font-size: 1.65rem; text-align: center; }
         .previewHero { min-height: 390px; padding: 72px 6% 36px; background: linear-gradient(90deg, #101010 0%, rgba(16,16,16,.52) 48%, transparent 82%), linear-gradient(180deg, transparent 55%, #101010 100%), url("assets/desert-hero.png") center/cover; }
         .previewHero h1 { margin: 0; font-size: clamp(4rem, 8vw, 7rem); font-weight: 300; letter-spacing: .28em; line-height: .9; }
         .previewHero h1 span,
@@ -33,23 +39,23 @@
     </style>
     <script>
         window.ApiClient = {
-            getUrl: (path) => path,
+            getUrl: (path, parameters) => parameters ? `${path}?${new URLSearchParams(parameters)}` : path,
             ajax: async ({ url }) => url.includes("/KuniniDiscover/details")
                 ? {
-                    sourceId: 438631,
+                    sourceId: 4488,
                     mediaType: "Movie",
-                    title: "Dune",
+                    title: "Friday the 13th",
                     originalTitle: null,
-                    year: 2021,
-                    releaseDate: "2021-10-22",
-                    runtimeMinutes: 155,
+                    year: 1980,
+                    releaseDate: "1980-05-09",
+                    runtimeMinutes: 95,
                     seasonCount: null,
-                    certification: "PG-13",
-                    rating: 7.8,
-                    voteCount: 14092,
-                    tagline: "Beyond fear, destiny awaits.",
-                    overview: "Paul Atreides, a brilliant and gifted young man born into a great destiny, must travel to the most dangerous planet in the universe to ensure the future of his family and his people.",
-                    genres: ["Science Fiction", "Adventure"],
+                    certification: "R",
+                    rating: 6.4,
+                    voteCount: 3201,
+                    tagline: "They were warned... They are doomed... And on Friday the 13th, nothing will save them.",
+                    overview: "Camp counselors are stalked by an unknown killer while trying to reopen a summer camp with a grim past.",
+                    genres: ["Horror", "Mystery", "Thriller"],
                     status: "Released",
                     posterUrl: "/preview/assets/desert-hero.png",
                     backdropUrl: "/preview/assets/desert-hero.png",
@@ -58,19 +64,30 @@
                 }
                 : {
                     source: "TMDb",
-                    items: [
-                        { sourceId: 438631, mediaType: "Movie", title: "Dune", year: 2021, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Science fiction", matchPercent: 96 },
-                        { sourceId: 335984, mediaType: "Movie", title: "Blade Runner 2049", year: 2017, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Science fiction", matchPercent: 93 },
-                        { sourceId: 329865, mediaType: "Movie", title: "Arrival", year: 2016, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Drama", matchPercent: 90 },
-                        { sourceId: 412656, mediaType: "Movie", title: "Chaos Walking", year: 2021, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Fantasy", matchPercent: 87 },
-                        { sourceId: 9543, mediaType: "Movie", title: "Prince of Persia", year: 2010, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Adventure", matchPercent: 84 },
-                        { sourceId: 188927, mediaType: "Movie", title: "Star Trek Beyond", year: 2016, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Action", matchPercent: 81 }
-                    ]
+                    items: url.includes("/KuniniDiscover/search")
+                        ? [
+                            { sourceId: 4488, mediaType: "Movie", title: "Friday the 13th", year: 1980, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Horror", matchPercent: 0 },
+                            { sourceId: 9725, mediaType: "Movie", title: "Friday the 13th Part 2", year: 1981, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Horror", matchPercent: 0 },
+                            { sourceId: 10225, mediaType: "Movie", title: "Friday the 13th Part VI", year: 1986, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Horror", matchPercent: 0 }
+                        ]
+                        : [
+                            { sourceId: 438631, mediaType: "Movie", title: "Dune", year: 2021, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Science fiction", matchPercent: 96 },
+                            { sourceId: 335984, mediaType: "Movie", title: "Blade Runner 2049", year: 2017, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Science fiction", matchPercent: 93 },
+                            { sourceId: 329865, mediaType: "Movie", title: "Arrival", year: 2016, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Drama", matchPercent: 90 },
+                            { sourceId: 412656, mediaType: "Movie", title: "Chaos Walking", year: 2021, posterUrl: "/preview/assets/recommendation-posters.png", genre: "Fantasy", matchPercent: 87 }
+                        ]
                 }
         };
     </script>
 </head>
 <body>
+    <main id="searchPage" class="mainAnimatedPage libraryPage allLibraryPage noSecondaryNavPage hide">
+        <div class="previewSearchForm">
+            <span class="previewSearchIcon" aria-hidden="true">⌕</span>
+            <input class="previewSearchInput" aria-label="Search" value="Friday 13">
+        </div>
+        <div class="noItemsMessage centerMessage">Sorry! No results found for “Friday 13”</div>
+    </main>
     <main class="itemDetailPage">
         <section class="previewHero">
             <h1><span>DUNE</span><small>PART TWO</small></h1>
@@ -90,6 +107,15 @@
             </section>
         </div>
     </main>
+    <script>
+        const applyPreviewRoute = () => {
+            const searching = window.location.hash.toLowerCase().startsWith("#/search");
+            document.getElementById("searchPage").classList.toggle("hide", !searching);
+            document.querySelector(".itemDetailPage").classList.toggle("hide", searching);
+        };
+        window.addEventListener("hashchange", applyPreviewRoute);
+        applyPreviewRoute();
+    </script>
     <script src="../Jellyfin.Plugin.KuniniDiscover/Web/kunini-discover.js"></script>
     <script>
         const applyPreviewPosterSprites = () => {

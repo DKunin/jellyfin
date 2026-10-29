@@ -41,6 +41,21 @@ var seriesSelected = RecommendationSelector.Select(
 Assert(seriesSelected.Count == 1, "a series recommendation must be selected");
 Assert(seriesSelected[0].MediaType == "Series" && seriesSelected[0].Year == 2001, "series metadata must use name and first_air_date");
 
+var searchSelected = RecommendationSelector.SelectSearch(
+    [
+        new TmdbCandidate { Id = 700, MediaType = "movie", MovieTitle = "External movie", MovieReleaseDate = "1980-05-09", GenreIds = [27] },
+        new TmdbCandidate { Id = 701, MediaType = "tv", SeriesTitle = "Local series", SeriesReleaseDate = "2009-02-13", GenreIds = [18] },
+        new TmdbCandidate { Id = 702, MediaType = "person", MovieTitle = "Ignored person", MovieReleaseDate = "1990-01-01" },
+        new TmdbCandidate { Id = 703, MediaType = "tv", SeriesTitle = "External series", SeriesReleaseDate = "2024-01-01", GenreIds = [9648] }
+    ],
+    new HashSet<string>(StringComparer.Ordinal),
+    new HashSet<string>(StringComparer.Ordinal) { "701" },
+    limit: 10);
+Assert(searchSelected.Count == 2, "external search must keep only non-local movies and series");
+Assert(searchSelected[0].MediaType == "Movie" && searchSelected[0].Title == "External movie", "movie search metadata must be preserved");
+Assert(searchSelected[0].MatchPercent == 0, "title search results must not invent recommendation match percentages");
+Assert(searchSelected[1].MediaType == "Series" && searchSelected[1].SourceId == 703, "series search results must preserve their media kind and identifier");
+
 var details = RecommendationSelector.SelectDetails(
     new TmdbDetails
     {
@@ -123,4 +138,4 @@ var resources = typeof(RecommendationSelector).Assembly.GetManifestResourceNames
 Assert(resources.Contains("Jellyfin.Plugin.KuniniDiscover.Web.kunini-discover.js", StringComparer.Ordinal), "the browser script must be embedded in the plugin assembly");
 Assert(resources.Contains("Jellyfin.Plugin.KuniniDiscover.Web.kunini-discover.css", StringComparer.Ordinal), "the browser stylesheet must be embedded in the plugin assembly");
 
-Console.WriteLine("Kunini Discover tests passed: movie/series filtering, metadata, embedded assets");
+Console.WriteLine("Kunini Discover tests passed: recommendations, external search, metadata, embedded assets");

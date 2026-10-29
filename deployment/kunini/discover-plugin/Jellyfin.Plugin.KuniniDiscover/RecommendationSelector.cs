@@ -68,6 +68,62 @@ internal static class RecommendationSelector
         return selected;
     }
 
+    public static IReadOnlyList<RecommendationItem> SelectSearch(
+        IReadOnlyList<TmdbCandidate> candidates,
+        IReadOnlySet<string> localMovieTmdbIds,
+        IReadOnlySet<string> localSeriesTmdbIds,
+        int limit)
+    {
+        var selected = new List<RecommendationItem>(limit);
+        var seen = new HashSet<(RecommendationMediaKind Kind, int Id)>();
+
+        foreach (var candidate in candidates)
+        {
+            var kind = candidate.MediaType?.ToLowerInvariant() switch
+            {
+                "movie" => RecommendationMediaKind.Movie,
+                "tv" => RecommendationMediaKind.Series,
+                _ => (RecommendationMediaKind?)null
+            };
+            if (kind is null
+                || selected.Count >= limit
+                || candidate.Id <= 0
+                || !seen.Add((kind.Value, candidate.Id)))
+            {
+                continue;
+            }
+
+            var localIds = kind == RecommendationMediaKind.Movie ? localMovieTmdbIds : localSeriesTmdbIds;
+            if (localIds.Contains(candidate.Id.ToString(CultureInfo.InvariantCulture)))
+            {
+                continue;
+            }
+
+            var title = kind == RecommendationMediaKind.Movie ? candidate.MovieTitle : candidate.SeriesTitle;
+            var date = kind == RecommendationMediaKind.Movie ? candidate.MovieReleaseDate : candidate.SeriesReleaseDate;
+            if (string.IsNullOrWhiteSpace(title) || !TryReadYear(date, out var year))
+            {
+                continue;
+            }
+
+            var genre = candidate.GenreIds
+                .Select(id => Genres.TryGetValue(id, out var value) ? value : null)
+                .FirstOrDefault(value => value is not null)
+                ?? "TMDb result";
+            selected.Add(new RecommendationItem(
+                candidate.Id,
+                kind.Value.ToString(),
+                title.Trim(),
+                year,
+                BuildImageUrl(candidate.PosterPath, null),
+                candidate.Overview,
+                genre,
+                0));
+        }
+
+        return selected;
+    }
+
     public static ExternalDetailResponse? SelectDetails(TmdbDetails details, RecommendationMediaKind kind)
     {
         var title = kind == RecommendationMediaKind.Movie ? details.MovieTitle : details.SeriesTitle;

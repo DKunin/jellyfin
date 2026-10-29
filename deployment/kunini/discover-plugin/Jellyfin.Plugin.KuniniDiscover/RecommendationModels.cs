@@ -113,6 +113,9 @@ internal sealed class TmdbCandidate
 
     [JsonPropertyName("genre_ids")]
     public IReadOnlyList<int> GenreIds { get; init; } = [];
+
+    [JsonPropertyName("media_type")]
+    public string? MediaType { get; init; }
 }
 
 internal sealed class TmdbDetails

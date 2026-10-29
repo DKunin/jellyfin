@@ -90,6 +90,12 @@ discover_response="$(curl --fail --silent \
     --header "${token_header}")"
 jq -e '.source == "TMDb" and (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800)' \
     <<<"${discover_response}" >/dev/null
+discover_search_response="$(curl --fail --silent --get "${base_url}/KuniniDiscover/search" \
+    --header "${token_header}" \
+    --data-urlencode 'query=Friday 13' \
+    --data-urlencode 'limit=5')"
+jq -e '.source == "TMDb" and (.items | type == "array") and all(.items[]; (.title | length) > 0 and .year > 1800 and (.mediaType == "Movie" or .mediaType == "Series"))' \
+    <<<"${discover_search_response}" >/dev/null
 discover_detail_id="$(jq -r '.items[0].sourceId // empty' <<<"${discover_response}")"
 discover_detail_type="$(jq -r '.items[0].mediaType // empty' <<<"${discover_response}")"
 if [[ -n "${discover_detail_id}" && -n "${discover_detail_type}" ]]; then

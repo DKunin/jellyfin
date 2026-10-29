@@ -59,6 +59,34 @@ public sealed class TmdbRecommendationClient
     }
 
     /// <summary>
+    /// Searches TMDb for movies and series matching a user query.
+    /// </summary>
+    /// <param name="query">The normalized search query.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ordered TMDb search candidates.</returns>
+    internal async Task<IReadOnlyList<TmdbCandidate>> SearchAsync(
+        string query,
+        CancellationToken cancellationToken)
+    {
+        var cacheKey = string.Create(CultureInfo.InvariantCulture, $"kunini-discover:search:{query.ToUpperInvariant()}");
+        var result = await _cache.GetOrCreateAsync(
+            cacheKey,
+            async cacheEntry =>
+            {
+                cacheEntry.AbsoluteExpirationRelativeToNow = CacheDuration;
+                var requestUri = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"search/multi?api_key={Uri.EscapeDataString(DiscoverSettings.TmdbApiKey)}&language=en-US&include_adult=false&page=1&query={Uri.EscapeDataString(query)}");
+                using var response = await _httpClient.GetAsync(requestUri, cancellationToken).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                var page = await response.Content.ReadFromJsonAsync<TmdbPage>(cancellationToken: cancellationToken).ConfigureAwait(false);
+                return page?.Results ?? [];
+            }).ConfigureAwait(false);
+
+        return result ?? [];
+    }
+
+    /// <summary>
     /// Gets full TMDb metadata for one recommended movie or series.
     /// </summary>
     /// <param name="kind">The media kind.</param>

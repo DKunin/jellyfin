@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.KuniniDiscover;
 
 /// <summary>
-/// Serves the Kunini Discover web assets and recommendation API.
+/// Serves the Kunini Discover web assets and external discovery API.
 /// </summary>
 [ApiController]
 [Route("KuniniDiscover")]
@@ -37,7 +37,7 @@ public sealed class KuniniDiscoverController : ControllerBase
     }
 
     /// <summary>
-    /// Returns the detail-page integration script.
+    /// Returns the Jellyfin Web integration script.
     /// </summary>
     /// <returns>The embedded JavaScript asset.</returns>
     [HttpGet("script.js")]
@@ -137,6 +137,50 @@ public sealed class KuniniDiscoverController : ControllerBase
             return Problem(
                 statusCode: StatusCodes.Status504GatewayTimeout,
                 title: "TMDb details timed out");
+        }
+    }
+
+    /// <summary>
+    /// Searches TMDb for movies and series that are not present in the Jellyfin library.
+    /// </summary>
+    /// <param name="query">The title query.</param>
+    /// <param name="limit">The maximum result count.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The external search matches.</returns>
+    [HttpGet("search")]
+    [Authorize]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> Search(
+        [FromQuery] string query,
+        [FromQuery] int limit = 12,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedQuery = query?.Trim();
+        if (normalizedQuery is not { Length: >= 2 and <= 100 })
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var result = await _recommendationService
+                .SearchAsync(normalizedQuery, Math.Clamp(limit, 1, 20), cancellationToken)
+                .ConfigureAwait(false);
+            return Ok(result);
+        }
+        catch (HttpRequestException exception)
+        {
+            _logger.LogWarning(exception, "TMDb search failed for query {Query}", normalizedQuery);
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "TMDb search is temporarily unavailable");
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "TMDb search timed out for query {Query}", normalizedQuery);
+            return Problem(
+                statusCode: StatusCodes.Status504GatewayTimeout,
+                title: "TMDb search timed out");
         }
     }
 

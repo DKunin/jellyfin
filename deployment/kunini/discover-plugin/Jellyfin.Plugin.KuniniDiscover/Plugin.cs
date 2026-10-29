@@ -7,7 +7,7 @@ using MediaBrowser.Model.Serialization;
 namespace Jellyfin.Plugin.KuniniDiscover;
 
 /// <summary>
-/// Adds external TMDb recommendations to Jellyfin Web item details pages.
+/// Adds external TMDb recommendations and title search to Jellyfin Web.
 /// </summary>
 public sealed class Plugin : BasePlugin<PluginConfiguration>
 {
@@ -25,7 +25,7 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>
     public override string Name => "Kunini Discover";
 
     /// <inheritdoc />
-    public override string Description => "Shows TMDb recommendations that are not already in the Jellyfin library.";
+    public override string Description => "Shows TMDb recommendations and search results that are not already in the Jellyfin library.";
 
     /// <inheritdoc />
     public override Guid Id => Guid.Parse("8f98fe96-76c8-44cf-9e88-d35021153ad8");

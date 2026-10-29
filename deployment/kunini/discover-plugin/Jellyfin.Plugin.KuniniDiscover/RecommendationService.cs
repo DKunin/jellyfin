@@ -80,6 +80,30 @@ public sealed class RecommendationService
     }
 
     /// <summary>
+    /// Searches the external catalog and removes movies and series already present locally.
+    /// </summary>
+    /// <param name="query">The normalized search query.</param>
+    /// <param name="limit">The maximum result count.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>External movies and series absent from the Jellyfin library.</returns>
+    public async Task<RecommendationResponse> SearchAsync(
+        string query,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var localItems = _libraryManager.GetItemList(new InternalItemsQuery
+        {
+            IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
+            Recursive = true
+        });
+        var localMovieIds = LocalTmdbIds(localItems.OfType<Movie>());
+        var localSeriesIds = LocalTmdbIds(localItems.OfType<Series>());
+        var candidates = await _tmdbClient.SearchAsync(query, cancellationToken).ConfigureAwait(false);
+        var items = RecommendationSelector.SelectSearch(candidates, localMovieIds, localSeriesIds, limit);
+        return new RecommendationResponse("TMDb", items);
+    }
+
+    /// <summary>
     /// Gets full metadata for one external recommendation.
     /// </summary>
     /// <param name="sourceId">The TMDb identifier.</param>
@@ -94,4 +118,11 @@ public sealed class RecommendationService
         var details = await _tmdbClient.GetDetailsAsync(kind, sourceId, cancellationToken).ConfigureAwait(false);
         return details is null ? null : RecommendationSelector.SelectDetails(details, kind);
     }
+
+    private static HashSet<string> LocalTmdbIds(IEnumerable<BaseItem> items)
+        => items
+            .Select(item => item.TryGetProviderId(MetadataProvider.Tmdb, out var providerId) ? providerId : null)
+            .OfType<string>()
+            .Where(providerId => !string.IsNullOrWhiteSpace(providerId))
+            .ToHashSet(StringComparer.Ordinal);
 }

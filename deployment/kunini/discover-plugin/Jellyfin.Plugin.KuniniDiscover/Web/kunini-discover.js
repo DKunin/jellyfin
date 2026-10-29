@@ -12,6 +12,7 @@
     "use strict";
 
     const sectionId = "kunini-discover-section";
+    const searchSectionId = "kunini-discover-search-section";
     const externalDetailId = "kunini-discover-external-detail";
     const trailerModalId = "kunini-discover-trailer-modal";
     const sourceIdParameter = "kuniniSourceId";
@@ -34,18 +35,29 @@
         return itemId && itemIdPattern.test(itemId) ? itemId : null;
     };
 
+    const parseSearchQuery = (hash) => {
+        if (!hash.toLocaleLowerCase().startsWith("#/search")) {
+            return null;
+        }
+        const query = hashParameters(hash)?.get("query")?.trim();
+        return query && query.length >= 2 ? query : null;
+    };
+
     const parseExternalRoute = (hash) => {
         const itemId = parseItemId(hash);
+        const searchQuery = parseSearchQuery(hash);
         const parameters = hashParameters(hash);
         const sourceIdValue = parameters?.get(sourceIdParameter);
         const mediaTypeValue = parameters?.get(mediaTypeParameter)?.toLocaleLowerCase();
-        if (!itemId || !/^\d{1,10}$/.test(sourceIdValue || "") || !["movie", "series"].includes(mediaTypeValue)) {
+        if ((!itemId && !searchQuery)
+            || !/^\d{1,10}$/.test(sourceIdValue || "")
+            || !["movie", "series"].includes(mediaTypeValue)) {
             return null;
         }
 
         const sourceId = Number(sourceIdValue);
         return sourceId > 0
-            ? { itemId, sourceId, mediaType: mediaTypeValue === "movie" ? "Movie" : "Series" }
+            ? { itemId, searchQuery, sourceId, mediaType: mediaTypeValue === "movie" ? "Movie" : "Series" }
             : null;
     };
 
@@ -57,11 +69,20 @@
         return `#/details?${parameters.toString()}`;
     };
 
+    const buildExternalSearchHash = (hash, item) => {
+        const parameters = hashParameters(hash) || new URLSearchParams();
+        parameters.set(sourceIdParameter, String(item.sourceId));
+        parameters.set(mediaTypeParameter, item.mediaType);
+        return `#/search?${parameters.toString()}`;
+    };
+
     const stripExternalDetailHash = (hash) => {
         const parameters = hashParameters(hash) || new URLSearchParams();
         parameters.delete(sourceIdParameter);
         parameters.delete(mediaTypeParameter);
-        return `#/details?${parameters.toString()}`;
+        const queryStart = hash.indexOf("?");
+        const route = queryStart === -1 ? hash : hash.slice(0, queryStart);
+        return `${route}?${parameters.toString()}`;
     };
 
     const buildMagnetUrl = (title, year) => {
@@ -252,12 +273,14 @@
         }
 
         const magnetUrl = buildMagnetUrl(item.title, item.year);
-        const detailHash = buildExternalDetailHash(currentHash || `#/details?id=${itemId}`, item);
+        const detailHash = parseSearchQuery(currentHash)
+            ? buildExternalSearchHash(currentHash, item)
+            : buildExternalDetailHash(currentHash || `#/details?id=${itemId}`, item);
         const overlay = createElement(document, "div", "kunini-discover-overlay");
-        overlay.append(
-            createElement(document, "strong", "kunini-discover-match", `${item.matchPercent}% match`),
-            createElement(document, "span", "kunini-discover-genre", item.genre)
-        );
+        if (item.matchPercent > 0) {
+            overlay.append(createElement(document, "strong", "kunini-discover-match", `${item.matchPercent}% match`));
+        }
+        overlay.append(createElement(document, "span", "kunini-discover-genre", item.genre));
         const overlayActions = createElement(document, "div", "kunini-discover-overlay-actions");
         overlayActions.append(
             createLink(document, "kunini-discover-details", "View details", detailHash, `View ${item.title} details`, false)
@@ -326,6 +349,56 @@
         placeDiscoverSection(container, section);
     };
 
+    const placeSearchSection = (page, section) => {
+        const localResults = page.querySelector(".searchResults");
+        const emptyMessage = page.querySelector(".noItemsMessage");
+        const anchor = localResults || emptyMessage;
+        if (anchor) {
+            if (anchor.nextElementSibling !== section) {
+                anchor.after(section);
+            }
+            return;
+        }
+        if (page.lastElementChild !== section) {
+            page.append(section);
+        }
+    };
+
+    const renderSearch = (document, page, query, response, currentHash) => {
+        document.getElementById(searchSectionId)?.remove();
+        const items = response?.items || [];
+        page.classList.toggle("kunini-discover-search-has-results", items.length > 0);
+        if (!items.length) {
+            return;
+        }
+
+        const section = createElement(document, "section", "kunini-discover-section kunini-discover-search-section verticalSection");
+        section.id = searchSectionId;
+        section.dataset.query = query;
+        section.setAttribute("aria-labelledby", "kunini-discover-search-heading");
+
+        const header = createElement(document, "div", "kunini-discover-header");
+        const copy = createElement(document, "div", "kunini-discover-copy");
+        const heading = createElement(document, "h2", "kunini-discover-heading", "Not in your library");
+        heading.id = "kunini-discover-search-heading";
+        copy.append(
+            heading,
+            createElement(document, "p", "kunini-discover-subtitle", `External matches for “${query}”`)
+        );
+        const sources = createElement(document, "div", "kunini-discover-sources");
+        const source = createElement(document, "span", "kunini-discover-source", response.source || "TMDb");
+        source.title = "This product uses the TMDB API but is not endorsed or certified by TMDB.";
+        sources.append(source);
+        header.append(copy, sources);
+
+        const rail = createElement(document, "div", "kunini-discover-rail");
+        rail.setAttribute("role", "list");
+        rail.setAttribute("aria-label", `External search matches for ${query}`);
+        items.forEach((item) => rail.append(createCard(document, item, null, currentHash)));
+        section.append(header, rail);
+        placeSearchSection(page, section);
+    };
+
     const formatRuntime = (minutes) => {
         if (!Number.isInteger(minutes) || minutes <= 0) {
             return null;
@@ -348,11 +421,11 @@
     const cleanupExternalDetail = (document) => {
         closeTrailerModal(document);
         document.getElementById(externalDetailId)?.remove();
-        document.querySelectorAll(".itemDetailPage.kunini-discover-external-active")
+        document.querySelectorAll(".kunini-discover-external-active")
             .forEach((page) => page.classList.remove("kunini-discover-external-active"));
     };
 
-    const renderExternalDetail = (window, page, details, returnHash) => {
+    const renderExternalDetail = (window, page, details, returnHash, returnLabel) => {
         const document = window.document;
         cleanupExternalDetail(document);
         document.getElementById(sectionId)?.remove();
@@ -369,7 +442,7 @@
             hero.append(backdrop);
         }
         hero.append(createElement(document, "div", "kunini-discover-external-backdrop-shade"));
-        hero.append(createLink(document, "kunini-discover-external-back", "Back to library item", returnHash, "Back to the library item", false));
+        hero.append(createLink(document, "kunini-discover-external-back", returnLabel, returnHash, returnLabel, false));
 
         const content = createElement(document, "div", "kunini-discover-external-content");
         const poster = createElement(document, "div", "kunini-discover-external-poster");
@@ -448,7 +521,7 @@
         title.focus({ preventScroll: true });
     };
 
-    const renderExternalError = (document, page, returnHash) => {
+    const renderExternalError = (document, page, returnHash, returnLabel) => {
         cleanupExternalDetail(document);
         page.classList.add("kunini-discover-external-active");
         const section = createElement(document, "section", "kunini-discover-external-detail kunini-discover-external-error");
@@ -456,7 +529,7 @@
         section.append(
             createElement(document, "h1", "kunini-discover-external-title", "Details unavailable"),
             createElement(document, "p", "kunini-discover-external-overview", "This external title could not be loaded right now."),
-            createLink(document, "kunini-discover-external-back", "Back to library item", returnHash, "Back to the library item", false)
+            createLink(document, "kunini-discover-external-back", returnLabel, returnHash, returnLabel, false)
         );
         page.append(section);
     };
@@ -464,24 +537,20 @@
     const refresh = async (window) => {
         const hash = window.location.hash;
         const itemId = parseItemId(hash);
+        const searchQuery = parseSearchQuery(hash);
         const externalRoute = parseExternalRoute(hash);
         const document = window.document;
-        if (!itemId) {
-            completedRouteKey = null;
-            cleanupExternalDetail(document);
-            document.getElementById(sectionId)?.remove();
-            return;
-        }
-
-        const page = document.querySelector(".itemDetailPage:not(.hide)")
-            || document.querySelector(".itemDetailPage");
         const apiClient = window.ApiClient;
         if (externalRoute) {
             document.getElementById(sectionId)?.remove();
+            document.getElementById(searchSectionId)?.remove();
+            const page = externalRoute.searchQuery
+                ? document.querySelector("#searchPage")
+                : document.querySelector(".itemDetailPage:not(.hide)") || document.querySelector(".itemDetailPage");
             if (!page || !apiClient?.ajax || !apiClient?.getUrl) {
                 return;
             }
-            const routeKey = `external:${externalRoute.mediaType}:${externalRoute.sourceId}`;
+            const routeKey = `external:${externalRoute.searchQuery ? "search" : "library"}:${externalRoute.mediaType}:${externalRoute.sourceId}`;
             if (completedRouteKey === routeKey && document.getElementById(externalDetailId)) {
                 return;
             }
@@ -489,6 +558,7 @@
             completedRouteKey = routeKey;
             const generation = ++renderGeneration;
             const returnHash = stripExternalDetailHash(hash);
+            const returnLabel = externalRoute.searchQuery ? "Back to search results" : "Back to library item";
             try {
                 const details = await apiClient.ajax({
                     type: "GET",
@@ -499,18 +569,64 @@
                     })
                 });
                 if (generation === renderGeneration && parseExternalRoute(window.location.hash)?.sourceId === externalRoute.sourceId) {
-                    renderExternalDetail(window, page, details, returnHash);
+                    renderExternalDetail(window, page, details, returnHash, returnLabel);
                 }
             } catch (error) {
                 console.warn("Kunini Discover could not load external details", error);
                 if (generation === renderGeneration) {
-                    renderExternalError(document, page, returnHash);
+                    renderExternalError(document, page, returnHash, returnLabel);
                 }
             }
             return;
         }
 
+        if (searchQuery) {
+            cleanupExternalDetail(document);
+            document.getElementById(sectionId)?.remove();
+            const page = document.querySelector("#searchPage");
+            const existingSection = document.getElementById(searchSectionId);
+            if (page && existingSection) {
+                page.classList.add("kunini-discover-search-has-results");
+                placeSearchSection(page, existingSection);
+            }
+            const routeKey = `search:${searchQuery.toLocaleLowerCase()}`;
+            if (completedRouteKey === routeKey && !existingSection) {
+                completedRouteKey = null;
+            }
+            if (!page || !apiClient?.ajax || !apiClient?.getUrl || completedRouteKey === routeKey) {
+                return;
+            }
+
+            completedRouteKey = routeKey;
+            const generation = ++renderGeneration;
+            try {
+                const response = await apiClient.ajax({
+                    type: "GET",
+                    dataType: "json",
+                    url: apiClient.getUrl("/KuniniDiscover/search", { query: searchQuery, limit: 12 })
+                });
+                if (generation === renderGeneration && parseSearchQuery(window.location.hash) === searchQuery) {
+                    renderSearch(document, page, searchQuery, response, hash);
+                }
+            } catch (error) {
+                completedRouteKey = null;
+                console.warn("Kunini Discover could not load external search results", error);
+            }
+            return;
+        }
+
+        document.getElementById(searchSectionId)?.remove();
+        document.querySelector("#searchPage")?.classList.remove("kunini-discover-search-has-results");
+        if (!itemId) {
+            completedRouteKey = null;
+            cleanupExternalDetail(document);
+            document.getElementById(sectionId)?.remove();
+            return;
+        }
+
         cleanupExternalDetail(document);
+        const page = document.querySelector(".itemDetailPage:not(.hide)")
+            || document.querySelector(".itemDetailPage");
         const container = document.querySelector(".itemDetailPage:not(.hide) .detailPageSecondaryContainer")
             || document.querySelector(".itemDetailPage .detailPageSecondaryContainer");
         const existingSection = document.getElementById(sectionId);
@@ -568,11 +684,13 @@
 
     return {
         buildExternalDetailHash,
+        buildExternalSearchHash,
         buildMagnetUrl,
         createCard,
         formatRuntime,
         parseExternalRoute,
         parseItemId,
+        parseSearchQuery,
         readTrailerUrls,
         render,
         start,

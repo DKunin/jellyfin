@@ -30,9 +30,32 @@ test("builds and parses same-origin external detail routes", () => {
         externalHash,
         `#/details?id=${itemId}&serverId=test&kuniniSourceId=438631&kuniniMediaType=Movie`
     );
-    assert.deepEqual(discover.parseExternalRoute(externalHash), { itemId, sourceId: 438631, mediaType: "Movie" });
+    assert.deepEqual(discover.parseExternalRoute(externalHash), {
+        itemId,
+        searchQuery: null,
+        sourceId: 438631,
+        mediaType: "Movie"
+    });
     assert.equal(discover.stripExternalDetailHash(externalHash), originalHash);
     assert.equal(discover.parseExternalRoute(`${originalHash}&kuniniSourceId=bad&kuniniMediaType=Movie`), null);
+});
+
+test("builds external detail routes from search and returns to the same query", () => {
+    const searchHash = "#/search?query=Friday+13";
+    const externalHash = discover.buildExternalSearchHash(searchHash, { sourceId: 4488, mediaType: "Movie" });
+    assert.equal(
+        externalHash,
+        "#/search?query=Friday+13&kuniniSourceId=4488&kuniniMediaType=Movie"
+    );
+    assert.equal(discover.parseSearchQuery(externalHash), "Friday 13");
+    assert.deepEqual(discover.parseExternalRoute(externalHash), {
+        itemId: null,
+        searchQuery: "Friday 13",
+        sourceId: 4488,
+        mediaType: "Movie"
+    });
+    assert.equal(discover.stripExternalDetailHash(externalHash), searchHash);
+    assert.equal(discover.parseSearchQuery("#/search?query=a"), null);
 });
 
 test("formats external runtimes like Jellyfin", () => {

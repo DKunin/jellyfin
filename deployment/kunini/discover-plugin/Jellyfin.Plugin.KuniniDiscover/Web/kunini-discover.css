@@ -258,7 +258,16 @@
     font-size: 0.78rem;
 }
 
-.itemDetailPage.kunini-discover-external-active > :not(#kunini-discover-external-detail) {
+.kunini-discover-search-section {
+    margin: 2rem 3.3% 2.5rem;
+}
+
+#searchPage.kunini-discover-search-has-results > .noItemsMessage {
+    display: none !important;
+}
+
+.itemDetailPage.kunini-discover-external-active > :not(#kunini-discover-external-detail),
+#searchPage.kunini-discover-external-active > :not(#kunini-discover-external-detail) {
     display: none !important;
 }
 
@@ -637,6 +646,9 @@ body.kunini-discover-trailer-open {
     .kunini-discover-section {
         margin-right: 0.9rem;
         padding: 0.9rem 0 0.45rem 0.9rem;
+    }
+    .kunini-discover-search-section {
+        margin-left: 0.9rem;
     }
     .kunini-discover-header {
         align-items: flex-start;
