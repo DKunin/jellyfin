@@ -94,7 +94,7 @@ discover_poster_url="$(jq -r '[.items[].posterUrl | select(. != null)][0] // emp
 if [[ -n "${discover_poster_url}" ]]; then
     discover_poster_type="$(curl --fail --silent --output /dev/null --write-out '%{content_type}' \
         "${base_url}${discover_poster_url}")"
-    [[ "${discover_poster_type}" == "image/jpeg" ]]
+    [[ "${discover_poster_type}" == image/* ]]
 fi
 network_config="$(curl --fail --silent "${base_url}/System/Configuration/network" --header "${token_header}")"
 if ! jq -e '.EnablePublishedServerUriByRequest == true' <<<"${network_config}" >/dev/null; then

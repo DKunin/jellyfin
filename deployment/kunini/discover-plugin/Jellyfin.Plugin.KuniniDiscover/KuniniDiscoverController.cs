@@ -75,7 +75,7 @@ public sealed class KuniniDiscoverController : ControllerBase
         try
         {
             var image = await _posterClient.GetPosterAsync(path, cancellationToken).ConfigureAwait(false);
-            return File(image, "image/jpeg");
+            return File(image.Bytes, image.ContentType);
         }
         catch (HttpRequestException exception)
         {
@@ -83,6 +83,13 @@ public sealed class KuniniDiscoverController : ControllerBase
             return Problem(
                 statusCode: StatusCodes.Status502BadGateway,
                 title: "TMDb poster is temporarily unavailable");
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "TMDb poster proxy timed out for {PosterPath}", path);
+            return Problem(
+                statusCode: StatusCodes.Status504GatewayTimeout,
+                title: "TMDb poster proxy timed out");
         }
     }
 
@@ -122,6 +129,13 @@ public sealed class KuniniDiscoverController : ControllerBase
             return Problem(
                 statusCode: StatusCodes.Status502BadGateway,
                 title: "TMDb recommendations are temporarily unavailable");
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(exception, "TMDb recommendations timed out for Jellyfin item {ItemId}", itemId);
+            return Problem(
+                statusCode: StatusCodes.Status504GatewayTimeout,
+                title: "TMDb recommendations timed out");
         }
     }
 

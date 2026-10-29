@@ -23,7 +23,7 @@ public sealed class ServiceRegistrator : IPluginServiceRegistrator
         });
         serviceCollection.AddHttpClient<TmdbPosterClient>(client =>
         {
-            client.BaseAddress = new Uri("https://wsrv.nl/", UriKind.Absolute);
+            client.BaseAddress = new Uri("https://i0.wp.com/", UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(15);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Jellyfin.Plugin.KuniniDiscover/1.0");
         });
