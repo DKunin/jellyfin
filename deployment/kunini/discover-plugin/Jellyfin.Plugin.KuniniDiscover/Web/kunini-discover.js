@@ -147,7 +147,7 @@
     };
 
     const placeDiscoverSection = (container, section) => {
-        const similar = container.querySelector(".similarCollapsible");
+        const similar = container.querySelector("#similarCollapsible, .similarCollapsible");
         if (similar) {
             if (similar.nextElementSibling !== section) {
                 similar.after(section);
