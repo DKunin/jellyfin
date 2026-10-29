@@ -416,6 +416,7 @@
 }
 
 .kunini-discover-external-magnet,
+.kunini-discover-external-trailer,
 .kunini-discover-external-status {
     display: inline-flex;
     align-items: center;
@@ -425,6 +426,7 @@
     padding: 0.35rem 1.15rem;
     border-radius: 999px;
     font-size: 0.86rem;
+    font-family: inherit;
     font-weight: 750;
     line-height: 1;
     text-decoration: none;
@@ -452,13 +454,134 @@
     color: rgba(255, 255, 255, 0.88);
 }
 
+.kunini-discover-external-trailer {
+    gap: 0.48rem;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    background: rgba(13, 15, 17, 0.76);
+    color: #fff;
+    cursor: pointer;
+}
+
+.kunini-discover-external-trailer svg {
+    width: 1rem;
+    height: 1rem;
+}
+
 .kunini-discover-external-back:hover,
 .kunini-discover-external-back:focus-visible,
 .kunini-discover-external-magnet:hover,
-.kunini-discover-external-magnet:focus-visible {
+.kunini-discover-external-magnet:focus-visible,
+.kunini-discover-external-trailer:hover,
+.kunini-discover-external-trailer:focus-visible {
     filter: brightness(1.16);
     outline: 2px solid #fff;
     outline-offset: 2px;
+}
+
+body.kunini-discover-trailer-open {
+    overflow: hidden;
+}
+
+.kunini-discover-trailer-modal {
+    position: fixed;
+    z-index: 99999;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: clamp(1rem, 4vw, 3rem);
+    background: rgba(0, 0, 0, 0.76);
+    backdrop-filter: blur(0.28rem);
+}
+
+.kunini-discover-trailer-dialog {
+    width: min(62rem, 100%);
+    max-height: calc(100vh - 2rem);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.17);
+    border-radius: 0.55rem;
+    background: #181a1f;
+    color: #fff;
+    box-shadow: 0 1.8rem 6rem rgba(0, 0, 0, 0.68);
+}
+
+.kunini-discover-trailer-header,
+.kunini-discover-trailer-footer {
+    display: flex;
+    align-items: center;
+    min-height: 3.8rem;
+    box-sizing: border-box;
+    padding: 0.7rem 1.1rem;
+}
+
+.kunini-discover-trailer-header {
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.kunini-discover-trailer-title {
+    margin: 0;
+    color: #fff;
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 650;
+}
+
+.kunini-discover-trailer-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.82);
+    font: inherit;
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.kunini-discover-trailer-close:hover,
+.kunini-discover-trailer-close:focus-visible {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.kunini-discover-trailer-player {
+    aspect-ratio: 16 / 9;
+    background: #000;
+}
+
+.kunini-discover-trailer-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.kunini-discover-trailer-footer {
+    justify-content: flex-end;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.kunini-discover-trailer-external {
+    color: #39bced;
+    font-size: 0.94rem;
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.kunini-discover-trailer-external:hover,
+.kunini-discover-trailer-external:focus-visible {
+    color: #8edfff;
+    text-decoration: underline;
+    outline: none;
 }
 
 .kunini-discover-external-tagline {
@@ -557,12 +680,26 @@
     .kunini-discover-external-tagline {
         margin-top: 1.75rem;
     }
+    .kunini-discover-trailer-modal {
+        align-items: center;
+        padding: 0.75rem;
+    }
+    .kunini-discover-trailer-dialog {
+        width: 100%;
+        max-height: calc(100vh - 1.5rem);
+    }
+    .kunini-discover-trailer-header,
+    .kunini-discover-trailer-footer {
+        padding-right: 0.85rem;
+        padding-left: 0.85rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .kunini-discover-poster,
     .kunini-discover-overlay,
-    .kunini-discover-external-magnet {
+    .kunini-discover-external-magnet,
+    .kunini-discover-trailer-modal {
         transition: none;
     }
 }

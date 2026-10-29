@@ -54,6 +54,8 @@ public sealed record RecommendationItem(
 /// <param name="Status">The release status.</param>
 /// <param name="PosterUrl">The same-origin poster URL.</param>
 /// <param name="BackdropUrl">The same-origin backdrop URL.</param>
+/// <param name="TrailerWatchUrl">The external YouTube watch URL, when a trailer is available.</param>
+/// <param name="TrailerEmbedUrl">The privacy-enhanced YouTube embed URL, when a trailer is available.</param>
 public sealed record ExternalDetailResponse(
     [property: JsonPropertyName("sourceId")] int SourceId,
     [property: JsonPropertyName("mediaType")] string MediaType,
@@ -71,7 +73,9 @@ public sealed record ExternalDetailResponse(
     [property: JsonPropertyName("genres")] IReadOnlyList<string> Genres,
     [property: JsonPropertyName("status")] string? Status,
     [property: JsonPropertyName("posterUrl")] string? PosterUrl,
-    [property: JsonPropertyName("backdropUrl")] string? BackdropUrl);
+    [property: JsonPropertyName("backdropUrl")] string? BackdropUrl,
+    [property: JsonPropertyName("trailerWatchUrl")] string? TrailerWatchUrl,
+    [property: JsonPropertyName("trailerEmbedUrl")] string? TrailerEmbedUrl);
 
 internal enum RecommendationMediaKind
 {
@@ -175,6 +179,9 @@ internal sealed class TmdbDetails
 
     [JsonPropertyName("content_ratings")]
     public TmdbContentRatingCollection? SeriesContentRatings { get; init; }
+
+    [JsonPropertyName("videos")]
+    public TmdbVideoCollection? Videos { get; init; }
 }
 
 internal sealed class TmdbGenre
@@ -223,4 +230,31 @@ internal sealed class TmdbContentRating
 
     [JsonPropertyName("rating")]
     public string? Rating { get; init; }
+}
+
+internal sealed class TmdbVideoCollection
+{
+    [JsonPropertyName("results")]
+    public IReadOnlyList<TmdbVideo> Results { get; init; } = [];
+}
+
+internal sealed class TmdbVideo
+{
+    [JsonPropertyName("key")]
+    public string? Key { get; init; }
+
+    [JsonPropertyName("site")]
+    public string? Site { get; init; }
+
+    [JsonPropertyName("type")]
+    public string? Type { get; init; }
+
+    [JsonPropertyName("official")]
+    public bool Official { get; init; }
+
+    [JsonPropertyName("iso_639_1")]
+    public string? Language { get; init; }
+
+    [JsonPropertyName("published_at")]
+    public DateTimeOffset? PublishedAt { get; init; }
 }

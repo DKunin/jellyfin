@@ -77,7 +77,7 @@ public sealed class TmdbRecommendationClient
             {
                 cacheEntry.AbsoluteExpirationRelativeToNow = CacheDuration;
                 var mediaPath = kind == RecommendationMediaKind.Movie ? "movie" : "tv";
-                var append = kind == RecommendationMediaKind.Movie ? "release_dates" : "content_ratings";
+                var append = kind == RecommendationMediaKind.Movie ? "release_dates,videos" : "content_ratings,videos";
                 var requestUri = string.Create(
                     CultureInfo.InvariantCulture,
                     $"{mediaPath}/{tmdbId}?api_key={Uri.EscapeDataString(DiscoverSettings.TmdbApiKey)}&language=en-US&append_to_response={append}");

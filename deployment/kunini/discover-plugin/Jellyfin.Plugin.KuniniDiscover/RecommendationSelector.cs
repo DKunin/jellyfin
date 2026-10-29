@@ -92,6 +92,7 @@ internal static class RecommendationSelector
             .OfType<string>()
             .Where(name => name.Length > 0)
             .ToArray();
+        var trailerKey = SelectTrailerKey(details.Videos);
 
         return new ExternalDetailResponse(
             details.Id,
@@ -110,7 +111,9 @@ internal static class RecommendationSelector
             genres,
             string.IsNullOrWhiteSpace(details.Status) ? null : details.Status.Trim(),
             BuildImageUrl(details.PosterPath, null),
-            BuildImageUrl(details.BackdropPath, "w1280"));
+            BuildImageUrl(details.BackdropPath, "w1280"),
+            trailerKey is null ? null : $"https://www.youtube.com/watch?v={trailerKey}",
+            trailerKey is null ? null : $"https://www.youtube-nocookie.com/embed/{trailerKey}?autoplay=0&playsinline=1&rel=0");
     }
 
     internal static bool TryReadYear(string? date, out int year)
@@ -149,5 +152,26 @@ internal static class RecommendationSelector
             .OrderByDescending(rating => string.Equals(rating.CountryCode, "US", StringComparison.OrdinalIgnoreCase))
             .Select(rating => rating.Rating?.Trim())
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+    }
+
+    private static string? SelectTrailerKey(TmdbVideoCollection? collection)
+    {
+        return (collection?.Results ?? [])
+            .Where(video => string.Equals(video.Site, "YouTube", StringComparison.OrdinalIgnoreCase))
+            .Where(video => string.Equals(video.Type, "Trailer", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(video.Type, "Teaser", StringComparison.OrdinalIgnoreCase))
+            .Where(video => IsValidYouTubeKey(video.Key))
+            .OrderBy(video => string.Equals(video.Type, "Trailer", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenByDescending(video => video.Official)
+            .ThenByDescending(video => string.Equals(video.Language, "en", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(video => video.PublishedAt)
+            .Select(video => video.Key!.Trim())
+            .FirstOrDefault();
+    }
+
+    private static bool IsValidYouTubeKey(string? key)
+    {
+        return key is { Length: >= 6 and <= 20 }
+            && key.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_');
     }
 }

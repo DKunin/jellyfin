@@ -23,7 +23,7 @@
         .previewSimilarRail { display: grid; grid-template-columns: repeat(4, minmax(10rem, 14rem)); gap: 1rem; overflow: hidden; }
         .previewSimilarPoster { aspect-ratio: 2 / 3; border-radius: .45rem; background: #202124 url("assets/recommendation-posters.png") calc(var(--preview-column) * 50%) 0 / 300% 200% no-repeat; }
         .previewPosterSprite { width: 300%; max-width: none; height: 200%; object-fit: fill; transform: translate(calc(var(--preview-column) * -33.333333%), calc(var(--preview-row) * -50%)); transform-origin: top left; }
-        .kunini-discover-external-poster .kunini-discover-external-poster-image { width: 300%; max-width: none; height: 200%; object-fit: fill; transform-origin: top left; }
+        .kunini-discover-external-poster .kunini-discover-external-poster-image { width: 100%; height: 100%; object-fit: cover; object-position: 48% center; }
         @media (max-width: 50em) {
             .previewHero { min-height: 325px; padding: 32px 1.5rem 28px; }
             .previewHero h1 { font-size: 3rem; }
@@ -51,8 +51,10 @@
                     overview: "Paul Atreides, a brilliant and gifted young man born into a great destiny, must travel to the most dangerous planet in the universe to ensure the future of his family and his people.",
                     genres: ["Science Fiction", "Adventure"],
                     status: "Released",
-                    posterUrl: "/preview/assets/recommendation-posters.png",
-                    backdropUrl: "/preview/assets/desert-hero.png"
+                    posterUrl: "/preview/assets/desert-hero.png",
+                    backdropUrl: "/preview/assets/desert-hero.png",
+                    trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
+                    trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0"
                 }
                 : {
                     source: "TMDb",

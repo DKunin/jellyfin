@@ -67,6 +67,17 @@ var details = RecommendationSelector.SelectDetails(
                     ReleaseDates = [new TmdbReleaseDateEntry { Certification = "PG-13" }]
                 }
             ]
+        },
+        Videos = new TmdbVideoCollection
+        {
+            Results =
+            [
+                new TmdbVideo { Key = "vimeo-ignored", Site = "Vimeo", Type = "Trailer", Official = true },
+                new TmdbVideo { Key = "Bad key!", Site = "YouTube", Type = "Trailer", Official = true },
+                new TmdbVideo { Key = "TeaserKey01", Site = "YouTube", Type = "Teaser", Official = true, Language = "en" },
+                new TmdbVideo { Key = "OtherKey001", Site = "YouTube", Type = "Trailer", Official = false, Language = "en" },
+                new TmdbVideo { Key = "8g18jFHCLXk", Site = "YouTube", Type = "Trailer", Official = true, Language = "en" }
+            ]
         }
     },
     RecommendationMediaKind.Movie)
@@ -76,6 +87,8 @@ Assert(details.RuntimeMinutes == 128 && details.Certification == "PG-13", "runti
 Assert(details.Rating == 7.8 && details.VoteCount == 1234, "rating metadata must be normalized");
 Assert(details.Genres.SequenceEqual(["Science Fiction", "Drama"]), "detail genres must be preserved");
 Assert(details.BackdropUrl == "/KuniniDiscover/poster?path=%2Fbackdrop.jpg&size=w1280", "backdrops must use the larger same-origin image proxy");
+Assert(details.TrailerWatchUrl == "https://www.youtube.com/watch?v=8g18jFHCLXk", "the preferred YouTube trailer must expose a safe watch URL");
+Assert(details.TrailerEmbedUrl == "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0", "trailers must use the privacy-enhanced non-autoplay embed URL");
 
 var seriesDetails = RecommendationSelector.SelectDetails(
     new TmdbDetails
@@ -88,12 +101,17 @@ var seriesDetails = RecommendationSelector.SelectDetails(
         SeriesContentRatings = new TmdbContentRatingCollection
         {
             Results = [new TmdbContentRating { CountryCode = "US", Rating = "TV-14" }]
+        },
+        Videos = new TmdbVideoCollection
+        {
+            Results = [new TmdbVideo { Key = "javascript:bad", Site = "YouTube", Type = "Trailer", Official = true }]
         }
     },
     RecommendationMediaKind.Series)
     ?? throw new InvalidOperationException("full external series details must be selected");
 Assert(seriesDetails.RuntimeMinutes == 24, "series runtime must fall back to the latest episode when TMDb omits episode_run_time");
 Assert(seriesDetails.SeasonCount == 9 && seriesDetails.Certification == "TV-14", "series seasons and content rating must be preserved");
+Assert(seriesDetails.TrailerWatchUrl is null && seriesDetails.TrailerEmbedUrl is null, "invalid trailer keys must not reach the browser");
 
 Assert(TmdbPosterClient.IsValidPosterPath("/valid_TMDb-poster.jpg"), "valid TMDb poster paths must be accepted");
 Assert(!TmdbPosterClient.IsValidPosterPath("https://example.com/poster.jpg"), "absolute poster URLs must be rejected");

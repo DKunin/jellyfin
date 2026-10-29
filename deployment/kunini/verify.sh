@@ -100,7 +100,10 @@ if [[ -n "${discover_detail_id}" && -n "${discover_detail_type}" ]]; then
     jq -e --argjson source_id "${discover_detail_id}" '
         .sourceId == $source_id and (.title | length) > 0 and .year > 1800 and
         (.overview | type == "string") and (.genres | type == "array") and
-        (.rating | type == "number") and (.voteCount | type == "number")
+        (.rating | type == "number") and (.voteCount | type == "number") and
+        ((.trailerWatchUrl == null and .trailerEmbedUrl == null) or
+            ((.trailerWatchUrl | startswith("https://www.youtube.com/watch?v=")) and
+             (.trailerEmbedUrl | startswith("https://www.youtube-nocookie.com/embed/"))))
     ' <<<"${discover_detail_response}" >/dev/null
 fi
 discover_poster_url="$(jq -r '[.items[].posterUrl | select(. != null)][0] // empty' <<<"${discover_response}")"

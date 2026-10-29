@@ -13,6 +13,7 @@
 
     const sectionId = "kunini-discover-section";
     const externalDetailId = "kunini-discover-external-detail";
+    const trailerModalId = "kunini-discover-trailer-modal";
     const sourceIdParameter = "kuniniSourceId";
     const mediaTypeParameter = "kuniniMediaType";
     const itemIdPattern = /^(?:[a-f\d]{32}|[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12})$/i;
@@ -100,6 +101,139 @@
             image.replaceWith(createElement(document, "div", `${className}-fallback`, fallbackText));
         }, { once: true });
         return image;
+    };
+
+    const createPlayIcon = (document) => {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("aria-hidden", "true");
+        svg.setAttribute("focusable", "false");
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", "M8 5v14l11-7z");
+        path.setAttribute("fill", "currentColor");
+        svg.append(path);
+        return svg;
+    };
+
+    const readTrailerUrls = (details) => {
+        try {
+            const watchUrl = new URL(details?.trailerWatchUrl);
+            const embedUrl = new URL(details?.trailerEmbedUrl);
+            const watchKey = watchUrl.searchParams.get("v");
+            const embedMatch = /^\/embed\/([A-Za-z0-9_-]{6,20})$/.exec(embedUrl.pathname);
+            const isTrustedWatch = watchUrl.protocol === "https:"
+                && watchUrl.hostname === "www.youtube.com"
+                && watchUrl.port === ""
+                && watchUrl.username === ""
+                && watchUrl.password === ""
+                && watchUrl.pathname === "/watch"
+                && /^[A-Za-z0-9_-]{6,20}$/.test(watchKey || "");
+            const isTrustedEmbed = embedUrl.protocol === "https:"
+                && embedUrl.hostname === "www.youtube-nocookie.com"
+                && embedUrl.port === ""
+                && embedUrl.username === ""
+                && embedUrl.password === ""
+                && embedMatch?.[1] === watchKey;
+            return isTrustedWatch && isTrustedEmbed
+                ? {
+                    watchUrl: `https://www.youtube.com/watch?v=${watchKey}`,
+                    embedUrl: `https://www.youtube-nocookie.com/embed/${watchKey}?autoplay=0&playsinline=1&rel=0`
+                }
+                : null;
+        } catch {
+            return null;
+        }
+    };
+
+    const closeTrailerModal = (document) => {
+        const modal = document.getElementById(trailerModalId);
+        if (!modal) {
+            return;
+        }
+
+        document.removeEventListener("keydown", modal.kuniniKeydownHandler);
+        modal.querySelector("iframe")?.removeAttribute("src");
+        modal.remove();
+        document.body.classList.remove("kunini-discover-trailer-open");
+        if (modal.kuniniReturnFocus?.isConnected) {
+            modal.kuniniReturnFocus.focus();
+        }
+    };
+
+    const openTrailerModal = (window, details, trailer, opener) => {
+        const document = window.document;
+        closeTrailerModal(document);
+
+        const modal = createElement(document, "div", "kunini-discover-trailer-modal");
+        modal.id = trailerModalId;
+        const dialog = createElement(document, "section", "kunini-discover-trailer-dialog");
+        dialog.setAttribute("role", "dialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "kunini-discover-trailer-title");
+
+        const header = createElement(document, "header", "kunini-discover-trailer-header");
+        const title = createElement(document, "h2", "kunini-discover-trailer-title", "Official trailer");
+        title.id = "kunini-discover-trailer-title";
+        const closeButton = createElement(document, "button", "kunini-discover-trailer-close");
+        closeButton.type = "button";
+        closeButton.setAttribute("aria-label", "Close trailer");
+        closeButton.textContent = "×";
+        header.append(title, closeButton);
+
+        const player = createElement(document, "div", "kunini-discover-trailer-player");
+        const iframe = createElement(document, "iframe", "kunini-discover-trailer-frame");
+        iframe.src = trailer.embedUrl;
+        iframe.title = `${details.title} official trailer`;
+        iframe.loading = "eager";
+        iframe.referrerPolicy = "strict-origin";
+        iframe.allow = "encrypted-media; picture-in-picture";
+        iframe.allowFullscreen = true;
+        player.append(iframe);
+
+        const footer = createElement(document, "footer", "kunini-discover-trailer-footer");
+        footer.append(createLink(
+            document,
+            "kunini-discover-trailer-external",
+            "Open on YouTube",
+            trailer.watchUrl,
+            `Open ${details.title} trailer on YouTube`
+        ));
+        dialog.append(header, player, footer);
+        modal.append(dialog);
+
+        const close = () => closeTrailerModal(document);
+        closeButton.addEventListener("click", close);
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                close();
+            }
+        });
+        modal.kuniniKeydownHandler = (event) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                close();
+                return;
+            }
+            if (event.key !== "Tab") {
+                return;
+            }
+
+            const focusable = [...dialog.querySelectorAll("button, iframe, a[href]")];
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        modal.kuniniReturnFocus = opener;
+        document.addEventListener("keydown", modal.kuniniKeydownHandler);
+        document.body.append(modal);
+        document.body.classList.add("kunini-discover-trailer-open");
+        closeButton.focus({ preventScroll: true });
     };
 
     const createCard = (document, item, itemId, currentHash) => {
@@ -212,6 +346,7 @@
     };
 
     const cleanupExternalDetail = (document) => {
+        closeTrailerModal(document);
         document.getElementById(externalDetailId)?.remove();
         document.querySelectorAll(".itemDetailPage.kunini-discover-external-active")
             .forEach((page) => page.classList.remove("kunini-discover-external-active"));
@@ -267,16 +402,23 @@
         copy.append(meta);
 
         const actions = createElement(document, "div", "kunini-discover-external-actions");
-        actions.append(
-            createLink(
-                document,
-                "kunini-discover-external-magnet",
-                "MAGNET",
-                buildMagnetUrl(details.title, details.year),
-                `Search magnet for ${details.title} (${details.year})`
-            ),
-            createElement(document, "span", "kunini-discover-external-status", "NOT IN LIBRARY")
-        );
+        actions.append(createLink(
+            document,
+            "kunini-discover-external-magnet",
+            "MAGNET",
+            buildMagnetUrl(details.title, details.year),
+            `Search magnet for ${details.title} (${details.year})`
+        ));
+        const trailer = readTrailerUrls(details);
+        if (trailer) {
+            const trailerButton = createElement(document, "button", "kunini-discover-external-trailer");
+            trailerButton.type = "button";
+            trailerButton.setAttribute("aria-label", `Watch official trailer for ${details.title}`);
+            trailerButton.append(createPlayIcon(document), createElement(document, "span", null, "TRAILER"));
+            trailerButton.addEventListener("click", () => openTrailerModal(window, details, trailer, trailerButton));
+            actions.append(trailerButton);
+        }
+        actions.append(createElement(document, "span", "kunini-discover-external-status", "NOT IN LIBRARY"));
         copy.append(actions);
 
         if (details.tagline) {
@@ -431,6 +573,7 @@
         formatRuntime,
         parseExternalRoute,
         parseItemId,
+        readTrailerUrls,
         render,
         start,
         stripExternalDetailHash

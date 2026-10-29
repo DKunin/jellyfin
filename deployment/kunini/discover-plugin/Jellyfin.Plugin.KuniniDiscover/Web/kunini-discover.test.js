@@ -41,3 +41,27 @@ test("formats external runtimes like Jellyfin", () => {
     assert.equal(discover.formatRuntime(42), "42m");
     assert.equal(discover.formatRuntime(null), null);
 });
+
+test("accepts only matching privacy-enhanced YouTube trailer URLs", () => {
+    assert.deepEqual(
+        discover.readTrailerUrls({
+            trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
+            trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0"
+        }),
+        {
+            watchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
+            embedUrl: "https://www.youtube-nocookie.com/embed/8g18jFHCLXk?autoplay=0&playsinline=1&rel=0"
+        }
+    );
+});
+
+test("rejects mismatched or untrusted trailer URLs", () => {
+    assert.equal(discover.readTrailerUrls({
+        trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
+        trailerEmbedUrl: "https://evil.example/embed/8g18jFHCLXk"
+    }), null);
+    assert.equal(discover.readTrailerUrls({
+        trailerWatchUrl: "https://www.youtube.com/watch?v=8g18jFHCLXk",
+        trailerEmbedUrl: "https://www.youtube-nocookie.com/embed/Different01"
+    }), null);
+});
