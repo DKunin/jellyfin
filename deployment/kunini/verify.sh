@@ -213,6 +213,19 @@ if [[ "${app_http_status}" != "301" ]] \
     exit 1
 fi
 
+for domain in "${browser_domain}" "${app_domain}"; do
+    abyss_css="$(curl --fail --silent "https://${domain}/KuniniAbyss/abyss.css?v=2f809171-k1")"
+    spotlight_loader="$(curl --fail --silent "https://${domain}/KuniniAbyss/spotlight-loader.js?v=2f809171")"
+    spotlight_html="$(curl --fail --silent "https://${domain}/KuniniAbyss/spotlight.html")"
+    grep -F -- '--abyss-accent' <<<"${abyss_css}" >/dev/null
+    grep -F 'data:font/woff2;base64,' <<<"${abyss_css}" >/dev/null
+    grep -F 'Abyss Spotlight' <<<"${spotlight_loader}" >/dev/null
+    grep -F '<title>Abyss Spotlight</title>' <<<"${spotlight_html}" >/dev/null
+done
+app_web_html="$(curl --fail --silent "https://${app_domain}/web/index.html")"
+grep -F '/KuniniAbyss/abyss.css?v=2f809171-k1' <<<"${app_web_html}" >/dev/null
+grep -F '/KuniniAbyss/spotlight-loader.js?v=2f809171' <<<"${app_web_html}" >/dev/null
+
 app_auth_header='Authorization: MediaBrowser Client="Kunini App Verification", Device="Server", DeviceId="kunini-app-verification", Version="1.0.0"'
 app_auth_result="$(jq -n --arg username dkunin --arg password "${admin_password}" '{Username:$username,Pw:$password}' \
     | curl --fail --silent --request POST "https://${app_domain}/Users/AuthenticateByName" \

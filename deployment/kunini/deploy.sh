@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 "${SCRIPT_DIR}/build-auth-bridge.sh"
 "${SCRIPT_DIR}/build-discover-plugin.sh"
+(cd "${SCRIPT_DIR}/abyss" && shasum -a 256 -c SHA256SUMS)
 
 ssh "${REMOTE_HOST}" "test -d /mnt/data/plex/movies && test -d /mnt/data/plex/series && test -d /mnt/data/plex/videos"
 ssh "${REMOTE_HOST}" "docker run --rm -v /mnt/data:/host-data alpine:3.22 install -d -o 1000 -g 1000 -m 0750 /host-data/.jellyfin-cache"
@@ -32,6 +33,7 @@ chmod 0700 "${app_dir}/secrets"
 "${app_dir}/deployment/setup-trailer-proxy-secret.sh"
 test -s "${app_dir}/deployment/auth-bridge/build/Jellyfin.Plugin.KuniniAuth.dll"
 test -s "${app_dir}/deployment/discover-plugin/build/Jellyfin.Plugin.KuniniDiscover.dll"
+(cd "${app_dir}/deployment/abyss" && sha256sum -c SHA256SUMS)
 docker run --rm --volume "${app_dir}/config:/config" alpine:3.22 \
     install -d -o 1000 -g 1000 -m 0750 /config/plugins/KuniniAuth
 docker run --rm --volume "${app_dir}/config:/config" alpine:3.22 \
@@ -93,6 +95,16 @@ for domain in "${domains[@]}"; do
     install -m 0644 "${source_config}" "${staging_dir}/${site_name}"
     sudo -n /usr/local/sbin/codex-nginx-apply "${site_name}"
 done
+
+for domain in "${domains[@]}"; do
+    abyss_css="$(curl --fail --silent "https://${domain}/KuniniAbyss/abyss.css?v=2f809171-k1")"
+    spotlight_loader="$(curl --fail --silent "https://${domain}/KuniniAbyss/spotlight-loader.js?v=2f809171")"
+    grep -F -- '--abyss-accent' <<<"${abyss_css}" >/dev/null
+    grep -F 'data:font/woff2;base64,' <<<"${abyss_css}" >/dev/null
+    grep -F 'Abyss Spotlight' <<<"${spotlight_loader}" >/dev/null
+done
+app_web_html="$(curl --fail --silent "https://media-app.kunini.ru/web/index.html")"
+grep -F '/KuniniAbyss/spotlight-loader.js?v=2f809171' <<<"${app_web_html}" >/dev/null
 
 docker container inspect jellyfin --format 'container={{.State.Status}} health={{.State.Health.Status}} image={{.Image}}'
 docker container inspect jellyfin-trailer-proxy --format 'trailer_proxy={{.State.Status}} health={{.State.Health.Status}} image={{.Image}}'
