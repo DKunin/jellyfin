@@ -38,11 +38,18 @@ if [[ "${configured_dns}" != '["9.9.9.9","149.112.112.112"]' ]]; then
 fi
 if ! grep -Fqx 'KUNINI_AUTH_DIRECT_ACCESS_ADDRESSES=172.30.0.1' <<<"${container_environment}" \
     || ! grep -Fqx "KUNINI_AUTH_DIRECT_ACCESS_HOSTS=${app_domain}" <<<"${container_environment}" \
-    || ! grep -Fqx 'KUNINI_TRAILER_PROXY_URL=http://trailer-proxy:8080/' <<<"${container_environment}"; then
+    || ! grep -Fqx 'KUNINI_TRAILER_PROXY_URL=http://trailer-proxy:8080/' <<<"${container_environment}" \
+    || ! grep -Fqx 'HTTPS_PROXY=http://trailer-proxy:8081' <<<"${container_environment}" \
+    || ! grep -Fqx 'https_proxy=http://trailer-proxy:8081' <<<"${container_environment}" \
+    || ! grep -Fqx 'NO_PROXY=localhost,127.0.0.1,jellyfin,trailer-proxy,172.30.0.1,172.30.0.2,172.30.0.3,media.kunini.ru,media-app.kunini.ru' <<<"${container_environment}"; then
     echo "Direct Jellyfin access trust boundary mismatch." >&2
     exit 1
 fi
 docker exec jellyfin curl --fail --silent http://trailer-proxy:8080/health | grep -Fqx 'ok'
+docker exec jellyfin curl --fail --silent http://trailer-proxy:8081/health | grep -Fqx 'ok'
+docker exec jellyfin curl --fail --silent --max-time 20 \
+    'https://www.omdbapi.com/?apikey=2c9d9507&s=Matrix&type=movie' \
+    | jq -e '.Response == "True" and (.Search | length > 0)' >/dev/null
 
 tmdb_api_ip="$(docker exec jellyfin getent ahostsv4 api.themoviedb.org | awk 'NR == 1 { print $1 }')"
 tmdb_image_ip="$(docker exec jellyfin getent ahostsv4 image.tmdb.org | awk 'NR == 1 { print $1 }')"

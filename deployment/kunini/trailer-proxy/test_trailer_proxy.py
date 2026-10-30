@@ -5,7 +5,14 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from trailer_proxy import StreamResolver, is_allowed_stream_url, is_valid_range, load_proxy_url
+from trailer_proxy import (
+    StreamResolver,
+    is_allowed_stream_url,
+    is_valid_range,
+    load_proxy_url,
+    open_socks_connection,
+    parse_connect_target,
+)
 
 
 class TrailerProxyTests(unittest.TestCase):
@@ -34,6 +41,31 @@ class TrailerProxyTests(unittest.TestCase):
         self.assertTrue(is_valid_range("bytes=-1024"))
         self.assertFalse(is_valid_range("bytes=0-1,4-5"))
         self.assertFalse(is_valid_range("items=0-1"))
+
+    def test_allows_only_public_dns_hosts_over_tls(self):
+        self.assertEqual(parse_connect_target("api.themoviedb.org:443"), ("api.themoviedb.org", 443))
+        self.assertEqual(parse_connect_target("www.omdbapi.com:443"), ("www.omdbapi.com", 443))
+        self.assertEqual(parse_connect_target("image.tmdb.org:443"), ("image.tmdb.org", 443))
+        self.assertIsNone(parse_connect_target("api.themoviedb.org:80"))
+        self.assertIsNone(parse_connect_target("user@api.themoviedb.org:443"))
+        self.assertIsNone(parse_connect_target("127.0.0.1:443"))
+        self.assertIsNone(parse_connect_target("service.internal:443"))
+        self.assertIsNone(parse_connect_target("trailer-proxy:443"))
+
+    @patch("trailer_proxy.socks.create_connection")
+    def test_opens_metadata_connection_through_socks_secret(self, create_connection):
+        target = ("www.omdbapi.com", 443)
+        open_socks_connection("socks5://user:p%40ss@proxy.example:1080", target)
+        create_connection.assert_called_once_with(
+            target,
+            timeout=15,
+            proxy_type=2,
+            proxy_addr="proxy.example",
+            proxy_port=1080,
+            proxy_rdns=True,
+            proxy_username="user",
+            proxy_password="p@ss",
+        )
 
     @patch("trailer_proxy.subprocess.run")
     def test_resolves_android_client_stream_through_proxy_and_caches_it(self, run):

@@ -80,6 +80,10 @@ curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'r
 curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/script.js | grep -F 'trailer.proxyUrl' >/dev/null
 curl --fail --silent http://127.0.0.1:8096/KuniniDiscover/styles.css | grep -F '.kunini-discover-section' >/dev/null
 docker exec jellyfin curl --fail --silent http://trailer-proxy:8080/health | grep -F 'ok' >/dev/null
+docker exec jellyfin curl --fail --silent http://trailer-proxy:8081/health | grep -F 'ok' >/dev/null
+docker exec jellyfin curl --fail --silent --max-time 20 \
+    'https://www.omdbapi.com/?apikey=2c9d9507&s=Matrix&type=movie' \
+    | jq -e '.Response == "True" and (.Search | length > 0)' >/dev/null
 
 staging_dir=/home/dekunin/nginx-sites
 certbot_config=/home/dekunin/letsencrypt

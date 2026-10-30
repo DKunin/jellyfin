@@ -4,7 +4,10 @@
 from __future__ import annotations
 
 import json
+import ipaddress
 import os
+import select
+import socket
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,9 +15,10 @@ import re
 import subprocess
 import threading
 import time
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 import requests
+import socks
 
 
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -25,6 +29,9 @@ FORMAT_SELECTOR = (
     "b[ext=mp4][vcodec^=avc1][acodec^=mp4a][protocol^=http]/"
     "b[ext=mp4][vcodec!=none][acodec!=none][protocol^=http]/"
     "b[vcodec!=none][acodec!=none][protocol^=http]"
+)
+PUBLIC_HOST_PATTERN = re.compile(
+    r"^(?=.{1,253}\Z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
 )
 
 
@@ -75,6 +82,49 @@ def is_allowed_stream_url(value: str) -> bool:
 
 def is_valid_range(value: str | None) -> bool:
     return value is None or bool(RANGE_PATTERN.fullmatch(value))
+
+
+def parse_connect_target(value: str) -> tuple[str, int] | None:
+    if not value or any(character.isspace() for character in value):
+        return None
+    try:
+        parsed = urlsplit(f"//{value}")
+        hostname = (parsed.hostname or "").lower()
+        port = parsed.port
+    except ValueError:
+        return None
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    else:
+        return None
+    if (
+        not PUBLIC_HOST_PATTERN.fullmatch(hostname)
+        or hostname.endswith((".internal", ".lan", ".local", ".localhost"))
+        or port != 443
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    return hostname, port
+
+
+def open_socks_connection(proxy_url: str, target: tuple[str, int]) -> socket.socket:
+    parsed = urlsplit(proxy_url)
+    return socks.create_connection(
+        target,
+        timeout=15,
+        proxy_type=socks.SOCKS5,
+        proxy_addr=parsed.hostname,
+        proxy_port=parsed.port,
+        proxy_rdns=True,
+        proxy_username=unquote(parsed.username) if parsed.username else None,
+        proxy_password=unquote(parsed.password) if parsed.password else None,
+    )
 
 
 class StreamResolver:
@@ -223,13 +273,82 @@ class TrailerProxyHandler(BaseHTTPRequestHandler):
         return
 
 
+class MetadataProxyHandler(BaseHTTPRequestHandler):
+    proxy_url: str
+    server_version = "KuniniMetadataProxy/1.0"
+
+    def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler contract
+        if self.path == "/health":
+            self._send_text(200, "ok\n")
+            return
+        self._send_text(405, "CONNECT required\n")
+
+    def do_CONNECT(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler contract
+        target = parse_connect_target(self.path)
+        if target is None:
+            self._send_text(403, "metadata host denied\n")
+            return
+
+        upstream = None
+        try:
+            upstream = open_socks_connection(self.proxy_url, target)
+            self.send_response(200, "Connection Established")
+            self.end_headers()
+            self.connection.settimeout(30)
+            upstream.settimeout(30)
+            self._relay(upstream)
+        except (OSError, socks.ProxyError):
+            if upstream is None:
+                self._send_text(502, "metadata proxy unavailable\n")
+        finally:
+            if upstream is not None:
+                upstream.close()
+
+    def _relay(self, upstream: socket.socket) -> None:
+        peers = (self.connection, upstream)
+        idle_deadline = time.monotonic() + 30
+        while time.monotonic() < idle_deadline:
+            readable, _, exceptional = select.select(peers, [], peers, 1)
+            if exceptional:
+                return
+            if not readable:
+                continue
+            for source in readable:
+                payload = source.recv(64 * 1024)
+                if not payload:
+                    return
+                destination = upstream if source is self.connection else self.connection
+                destination.sendall(payload)
+                idle_deadline = time.monotonic() + 30
+
+    def _send_text(self, status: int, value: str) -> None:
+        payload = value.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+
 def main() -> None:
     proxy_url = load_proxy_url(os.environ.get("SOCKS_PROXY_FILE", "/run/secrets/socks-proxy-url"))
     TrailerProxyHandler.proxy_url = proxy_url
     TrailerProxyHandler.resolver = StreamResolver(proxy_url)
-    server = ThreadingHTTPServer(("0.0.0.0", 8080), TrailerProxyHandler)
-    server.daemon_threads = True
-    server.serve_forever()
+    MetadataProxyHandler.proxy_url = proxy_url
+    trailer_server = ThreadingHTTPServer(("0.0.0.0", 8080), TrailerProxyHandler)
+    metadata_server = ThreadingHTTPServer(("0.0.0.0", 8081), MetadataProxyHandler)
+    trailer_server.daemon_threads = True
+    metadata_server.daemon_threads = True
+    metadata_thread = threading.Thread(target=metadata_server.serve_forever, daemon=True)
+    metadata_thread.start()
+    try:
+        trailer_server.serve_forever()
+    finally:
+        metadata_server.shutdown()
 
 
 if __name__ == "__main__":

@@ -13,5 +13,5 @@ COPY trailer_proxy.py test_trailer_proxy.py ./
 RUN python -m unittest -q test_trailer_proxy.py \
     && rm test_trailer_proxy.py
 
-EXPOSE 8080
+EXPOSE 8080 8081
 CMD ["python", "/app/trailer_proxy.py"]
